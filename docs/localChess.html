@@ -6,14 +6,14 @@
   <title>象棋</title>
   
   <link rel="manifest" href="./manifest_local.json">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#000000">
   <link rel="apple-touch-icon" href="./icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="象棋">
 
-<style>
-    /* 針對 iPhone 最佳化：禁止反白、禁止長按選單、禁止雙擊縮放 */
+  <style>
+    /* 針對行動裝置最佳化：禁止反白、禁止長按選單、禁止雙擊縮放 */
     *, *::before, *::after { 
       box-sizing: border-box; 
       -webkit-touch-callout: none;
@@ -28,24 +28,27 @@
       /* 扣除最小化底部控制列約 50px */
       --board-max-width: 98vw;
       --board-max-height: calc(100dvh - 50px - env(safe-area-inset-bottom, 0px));
+      /* 自動取寬度或高度的極限來決定格子大小 */
       --cell-size: min(calc(var(--board-max-width) / 9.5), calc(var(--board-max-height) / 11)); 
       --piece-size: calc(var(--cell-size) * 0.88); 
       --font-size: calc(var(--piece-size) * 0.55);
       
-      /* 暗色模式，但棋盤保持淡黃色 */
+      /* 暗色模式 + 淡黃色棋盤配色 */
       --body-background: #000000; 
-      --board-color: #e4c695; /* 【恢復】原來的淡黃色 */
+      --board-color: #e4c695; 
       --text-main: #ffffff; 
       --bottom-bar-bg: #1a1a1a; 
-      --turn-info-bg: #333333; 
-      --turn-info-border: #555555; 
+      
+      /* 動畫速度參數 */
+      --transition-speed: 0.3s;
+      --active-speed: 0.1s; 
     }
 
     /* 滿版設定，不允許滑動 */
     body { 
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-      background: var(--body-background); /* 【修改】 */
-      color: var(--text-main); /* 【修改】預設文字白色 */
+      background: var(--body-background);
+      color: var(--text-main); 
       margin: 0; 
       padding: 0; 
       display: flex;
@@ -53,7 +56,7 @@
       height: 100dvh;
       touch-action: manipulation; 
       overflow-x: hidden; 
-      overflow-y: hidden; /* 防止任何不必要的滾動 */
+      overflow-y: hidden; 
     }
     
     /* 棋盤主區塊 (置中且撐滿剩餘空間) */
@@ -64,12 +67,12 @@
       align-items: center;
       position: relative;
       width: 100%;
-      min-height: 0; /* 防止擠壓 */
+      min-height: 0; 
     }
 
     #board-container {
       background: var(--board-color); 
-      border: 3px solid #333; /* 【恢復】因為棋盤變亮了，外框改回較深的 #333 比較好看 */
+      border: 3px solid #333; 
       padding: calc(var(--cell-size) / 2.2); 
       box-shadow: 2px 5px 15px rgba(0,0,0,0.6); 
       border-radius: 6px; 
@@ -77,15 +80,23 @@
     
     #board-relative-wrapper { position: relative; }
     #board-svg-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+    
+    /* 改用絕對定位以支援順滑動畫 */
     #board-grid { 
-      display: grid; 
       position: relative; 
       z-index: 2; 
-      grid-template-columns: repeat(9, var(--cell-size)); 
-      grid-template-rows: repeat(10, var(--cell-size)); 
+      width: calc(9 * var(--cell-size));
+      height: calc(10 * var(--cell-size));
     }
     
-    .cell { position: relative; display: flex; justify-content: center; align-items: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .cell { 
+      position: absolute; 
+      width: var(--cell-size);
+      height: var(--cell-size);
+      display: flex; justify-content: center; align-items: center; 
+      cursor: pointer; 
+      -webkit-tap-highlight-color: transparent; 
+    }
 
     .piece {
       width: var(--piece-size); 
@@ -95,74 +106,90 @@
       z-index: 10;
       display: flex; justify-content: center; align-items: center; 
       font-weight: bold; font-size: var(--font-size); 
-      box-shadow: 2px 2px 5px rgba(0,0,0,0.6); /* 【修改】陰影加深 */
-      background: #fdf6e3; /* 棋子本身保持木色 */
-      border: 2px solid #333; /* 棋子邊框保持深色 */
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.6); 
+      background: #fdf6e3; 
+      border: 2px solid #333; 
+      
+      margin-top: calc((var(--cell-size) - var(--piece-size)) / 2);
+      margin-left: calc((var(--cell-size) - var(--piece-size)) / 2);
+
+      /* 【新增這一行】讓滑鼠移過去知道可以點擊 */
+      cursor: pointer; 
+
+      transition: top var(--transition-speed) ease-in-out, 
+                  left var(--transition-speed) ease-in-out, 
+                  transform var(--active-speed) ease-out, 
+                  box-shadow var(--transition-speed) ease,
+                  opacity var(--transition-speed) ease;
     }
-    /* 黑棋字體在暗色背景下需更明顯，保持原有顏色 */
+    
     .piece.red { color: #d32f2f; border-color: #d32f2f; }
     .piece.black { color: #212121; border-color: #212121; }
     
-    /* 【修改】選取與移動提示顏色調整，使其更醒目 */
-    .piece.selected { box-shadow: 0 0 10px 4px #00BCD4; transform: scale(1.15); z-index: 15; } 
-    .cell.valid-move::after { content: ''; position: absolute; width: calc(var(--cell-size) * 0.3); height: calc(var(--cell-size) * 0.3); background: rgba(0, 188, 212, 0.7); border-radius: 50%; z-index: 12; }
-    
-    .cell.last-move-origin::before { content: ''; position: absolute; width: calc(var(--cell-size) * 0.4); height: calc(var(--cell-size) * 0.4); background-color: rgba(255, 152, 0, 0.5); border-radius: 50%; z-index: 5; }
+    .piece.selected { box-shadow: 0 0 10px 4px #00BCD4; transform: scale(1.15); z-index: 15; cursor: grabbing; } 
     .piece.last-moved { box-shadow: 0 0 0 3px #FF9800, 0 0 15px 4px rgba(255, 152, 0, 0.7); z-index: 14; }
 
-    /* 底部控制列 (最小化且暗色化) */
+    .cell.valid-move::after { content: ''; position: absolute; width: calc(var(--cell-size) * 0.3); height: calc(var(--cell-size) * 0.3); background: rgba(0, 188, 212, 0.6); border-radius: 50%; z-index: 12; transition: background 0.2s; }
+    .cell.last-move-origin::before { content: ''; position: absolute; width: calc(var(--cell-size) * 0.4); height: calc(var(--cell-size) * 0.4); background-color: rgba(255, 152, 0, 0.5); border-radius: 50%; z-index: 5; }
+
+    /* 底部控制列 */
     .bottom-bar {
       display: flex;
       justify-content: space-evenly;
       align-items: center;
       width: 100%;
-      background: var(--bottom-bar-bg); /* 【修改】 */
-      padding: 4px 5px calc(4px + env(safe-area-inset-bottom, 0px)) 5px; /* 最小化 padding */
-      box-shadow: 0 -3px 10px rgba(0,0,0,0.3); /* 【修改】 */
+      background: var(--bottom-bar-bg); 
+      padding: 4px 5px calc(4px + env(safe-area-inset-bottom, 0px)) 5px; 
+      box-shadow: 0 -3px 10px rgba(0,0,0,0.4); 
       z-index: 50;
       flex-shrink: 0;
     }
     
     .bottom-bar > div, .bottom-bar > button {
-      padding: 4px 10px; /* 最小化 padding */
-      font-size: clamp(12px, 3.5vw, 16px); /* 最小化字體 */
+      padding: 6px 12px; 
+      font-size: clamp(14px, 3.5vw, 16px); 
       border-radius: 6px;
       font-weight: bold;
       white-space: nowrap;
+      transition: transform var(--active-speed) ease-out, 
+                  box-shadow var(--transition-speed) ease;
     }
 
     #turn-info {
-      background: #ffffff; /* 【修改】純白/淺色背景 */
-      border: 2px solid #ccc; /* 【修改】加粗一點邊框，讓紅黑邊框切換時更明顯 */
-      font-weight: 900; /* 【修改】加粗字體，提升閱讀性 */
-      box-shadow: 0 2px 4px rgba(0,0,0,0.15); /* 微微的陰影讓它看起來更有質感 */
+      background: #ffffff; 
+      border: 2px solid #ccc; 
+      font-weight: 900; 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15); 
       text-align: center;
-      min-width: 60px; /* 確保「紅方」與「黑方」切換時寬度一致不會跳動 */
+      min-width: 65px; 
+      color: #333;
+      transition: opacity 0.2s ease, border-color var(--transition-speed) ease;
     }
+    #turn-info.changing { opacity: 0; transform: scale(0.95); }
     
     .btn { color: white; border: none; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.4); }
-    .btn:active { transform: scale(0.95); box-shadow: 0 0 2px rgba(0,0,0,0.2); }
+    .btn:active { transform: scale(0.92); box-shadow: 0 0 2px rgba(0,0,0,0.2); transition: transform 0.05s ease-out; }
     .btn-undo { background-color: #ff9800; } 
     .btn-restart { background-color: #4CAF50; }
 
-    /* 將軍警告 (浮動在棋盤上方) */
+    /* 將軍警告 */
     .check-alert { 
       position: absolute;
       top: 15px;
-      color: #ff4444; /* 【修改】更亮的紅色 */
+      color: #ff4444; 
       font-size: 24px; 
       font-weight: bold; 
-      animation: blink 1s infinite; 
       display: none; 
-      background: rgba(0,0,0,0.7); /* 【修改】暗色半透明背景 */
+      background: rgba(0,0,0,0.75); 
       padding: 5px 20px;
       border-radius: 20px;
-      box-shadow: 0 0 15px rgba(255,68,68,0.5); /* 【修改】 */
+      box-shadow: 0 0 15px rgba(255,68,68,0.5);
       z-index: 100;
+      animation: checkFadeIn var(--transition-speed) ease-out, blink 1s infinite alternate;
     }
-    @keyframes blink { 50% { opacity: 0; } }
+    @keyframes checkFadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes blink { from { filter: brightness(1); } to { filter: brightness(1.3); } }
   </style>
-
 </head>
 <body>
 
@@ -184,16 +211,12 @@
   </div>
 
   <script>
-    // 註冊 Service Worker
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(e => {});
-      });
+      window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(e => {}); });
     }
 
-    // --- 遊戲邏輯 ---
+    // --- 遊戲邏輯與狀態 ---
     const piecesText = { 'k':'將', 'a':'士', 'e':'象', 'h':'馬', 'r':'車', 'c':'砲', 'p':'卒', 'K':'帥', 'A':'仕', 'E':'相', 'H':'傌', 'R':'俥', 'C':'炮', 'P':'兵' };
-
     const initialBoard = [
       ['r','h','e','a','k','a','e','h','r'],
       ['','','','','','','','',''],
@@ -207,25 +230,40 @@
       ['R','H','E','A','K','A','E','H','R']
     ];
 
-    let gameState = { board: [], turn: 'r', history: [], lastMove: null };
+    let gameState = { board: [], boardIds: [], turn: 'r', history: [], lastMove: null };
     let selectedCell = null;
+    let nextPieceId = 1;
 
     function restartGame() {
       if (gameState.history.length > 0 && !confirm("確定要重新開局嗎？")) return;
       gameState.board = JSON.parse(JSON.stringify(initialBoard));
+      
+      // 初始化棋子專屬 ID (用於追蹤動畫)
+      gameState.boardIds = Array(10).fill(null).map(() => Array(9).fill(null));
+      for (let r=0; r<10; r++) {
+        for (let c=0; c<9; c++) {
+          if (gameState.board[r][c]) gameState.boardIds[r][c] = `p_${nextPieceId++}`;
+        }
+      }
+
       gameState.turn = 'r'; gameState.history = []; gameState.lastMove = null; selectedCell = null;
+      document.getElementById('board-grid').innerHTML = ''; // 清空畫面重繪
       updateUI();
     }
 
-    function undoMove(steps) {
-      for (let i = 0; i < steps; i++) {
-        if (gameState.history.length === 0) break;
-        let last = gameState.history.pop();
-        gameState.board[last.r1][last.c1] = gameState.board[last.r2][last.c2];
-        gameState.board[last.r2][last.c2] = last.eaten;
-        gameState.turn = last.turn; gameState.lastMove = last.prevMove;
-      }
-      selectedCell = null; updateUI();
+    function undoMove() {
+      if (gameState.history.length === 0) return;
+      let last = gameState.history.pop();
+      
+      gameState.board[last.r1][last.c1] = gameState.board[last.r2][last.c2];
+      gameState.board[last.r2][last.c2] = last.eaten;
+      
+      gameState.boardIds[last.r1][last.c1] = gameState.boardIds[last.r2][last.c2];
+      gameState.boardIds[last.r2][last.c2] = last.eatenId;
+
+      gameState.turn = last.turn; gameState.lastMove = last.prevMove;
+      selectedCell = null; 
+      updateUI();
     }
 
     function handleCellClick(r, c) {
@@ -248,23 +286,35 @@
 
     function commitMove(r1, c1, r2, c2) {
       let eatenPiece = gameState.board[r2][c2];
-      gameState.history.push({ r1: r1, c1: c1, r2: r2, c2: c2, eaten: eatenPiece, turn: gameState.turn, prevMove: gameState.lastMove ? { ...gameState.lastMove } : null });
-      gameState.board[r2][c2] = gameState.board[r1][c1]; gameState.board[r1][c1] = '';
-      gameState.turn = gameState.turn === 'b' ? 'r' : 'b'; gameState.lastMove = { r1: r1, c1: c1, r2: r2, c2: c2 }; selectedCell = null; 
+      let eatenId = gameState.boardIds[r2][c2];
+
+      gameState.history.push({ r1: r1, c1: c1, r2: r2, c2: c2, eaten: eatenPiece, eatenId: eatenId, turn: gameState.turn, prevMove: gameState.lastMove ? { ...gameState.lastMove } : null });
+      
+      gameState.board[r2][c2] = gameState.board[r1][c1]; 
+      gameState.board[r1][c1] = '';
+      
+      gameState.boardIds[r2][c2] = gameState.boardIds[r1][c1]; 
+      gameState.boardIds[r1][c1] = null;
+
+      gameState.turn = gameState.turn === 'b' ? 'r' : 'b'; 
+      gameState.lastMove = { r1: r1, c1: c1, r2: r2, c2: c2 }; 
+      selectedCell = null; 
       updateUI(); 
     }
 
     function updateUI() {
       let turnInfo = document.getElementById('turn-info');
-      if (gameState.turn === 'r') { 
-        turnInfo.textContent = "紅方"; 
-        turnInfo.style.color = "#d32f2f"; 
-        turnInfo.style.borderColor = "#d32f2f";
-      } else { 
-        turnInfo.textContent = "黑方"; 
-        turnInfo.style.color = "#212121"; 
-        turnInfo.style.borderColor = "#212121";
-      }
+      
+      // 回合提示文字動畫
+      turnInfo.classList.add('changing');
+      setTimeout(() => {
+        if (gameState.turn === 'r') { 
+          turnInfo.textContent = "紅方"; turnInfo.style.color = "#d32f2f"; turnInfo.style.borderColor = "#d32f2f";
+        } else { 
+          turnInfo.textContent = "黑方"; turnInfo.style.color = "#212121"; turnInfo.style.borderColor = "#212121";
+        }
+        turnInfo.classList.remove('changing');
+      }, 150);
 
       let checkMsg = document.getElementById('check-msg');
       if (isKingAttacked(gameState.board, gameState.turn)) checkMsg.style.display = 'block'; else checkMsg.style.display = 'none'; 
@@ -273,34 +323,83 @@
     }
 
     function renderBoard() {
-      const grid = document.getElementById('board-grid'); grid.innerHTML = ''; 
-      for (let r = 0; r < 10; r++) {
-        for (let c = 0; c < 9; c++) {
-          let cellDiv = document.createElement('div'); cellDiv.className = 'cell'; cellDiv.dataset.r = r; cellDiv.dataset.c = c; cellDiv.onclick = () => handleCellClick(r, c);
-          if (gameState.lastMove && gameState.lastMove.r1 === r && gameState.lastMove.c1 === c) cellDiv.classList.add('last-move-origin');
-
-          let p = gameState.board[r][c];
-          if (p) {
-            let pieceDiv = document.createElement('div'); pieceDiv.className = 'piece ' + (p === p.toLowerCase() ? 'black' : 'red');
-            if (selectedCell && selectedCell.r === r && selectedCell.c === c) pieceDiv.classList.add('selected');
-            if (gameState.lastMove && gameState.lastMove.r2 === r && gameState.lastMove.c2 === c) pieceDiv.classList.add('last-moved');
-            pieceDiv.textContent = piecesText[p]; cellDiv.appendChild(pieceDiv);
+      const grid = document.getElementById('board-grid');
+      
+      // 1. 初始化格子 (僅建立一次)
+      if (grid.children.length === 0 || !grid.querySelector('.cell')) {
+        for (let r = 0; r < 10; r++) {
+          for (let c = 0; c < 9; c++) {
+            let cellDiv = document.createElement('div'); 
+            cellDiv.className = 'cell'; 
+            cellDiv.dataset.r = r; cellDiv.dataset.c = c;
+            cellDiv.style.top = `calc(${r} * var(--cell-size))`;
+            cellDiv.style.left = `calc(${c} * var(--cell-size))`;
+            cellDiv.onclick = () => handleCellClick(r, c);
+            grid.appendChild(cellDiv);
           }
-          if (selectedCell && isMoveLegal(gameState.board, selectedCell.r, selectedCell.c, r, c)) {
-             if (!leavesKingInCheck(gameState.board, selectedCell.r, selectedCell.c, r, c, gameState.turn)) cellDiv.classList.add('valid-move');
-          }
-          grid.appendChild(cellDiv);
         }
       }
+
+      // 2. 更新格子狀態 (標示合法路徑與最後移動點)
+      const cells = grid.querySelectorAll('.cell');
+      cells.forEach(cellDiv => {
+        let r = parseInt(cellDiv.dataset.r); let c = parseInt(cellDiv.dataset.c);
+        cellDiv.className = 'cell'; // 重置
+        if (gameState.lastMove && gameState.lastMove.r1 === r && gameState.lastMove.c1 === c) cellDiv.classList.add('last-move-origin');
+        if (selectedCell && isMoveLegal(gameState.board, selectedCell.r, selectedCell.c, r, c)) {
+           if (!leavesKingInCheck(gameState.board, selectedCell.r, selectedCell.c, r, c, gameState.turn)) cellDiv.classList.add('valid-move');
+        }
+      });
+
+      // 3. 處理棋子的滑順渲染
+      let currentActiveIds = new Set();
+      for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 9; c++) {
+          let p = gameState.board[r][c];
+          let pId = gameState.boardIds[r][c];
+          
+          if (p && pId) {
+            currentActiveIds.add(pId);
+            let pieceDiv = document.getElementById(pId);
+            
+            if (!pieceDiv) { // 沒在畫面上則建立
+              pieceDiv = document.createElement('div');
+              pieceDiv.id = pId;
+              pieceDiv.className = 'piece ' + (p === p.toLowerCase() ? 'black' : 'red');
+              pieceDiv.textContent = piecesText[p];
+              grid.appendChild(pieceDiv);
+            }
+            
+            // 透過 CSS 動畫移動位置
+            pieceDiv.style.top = `calc(${r} * var(--cell-size))`;
+            pieceDiv.style.left = `calc(${c} * var(--cell-size))`;
+            
+            // 【新增這一行！】讓棋子本身也能被點擊，並傳遞正確的座標
+            pieceDiv.onclick = () => handleCellClick(r, c);
+            
+            pieceDiv.classList.toggle('selected', selectedCell && selectedCell.r === r && selectedCell.c === c);
+            pieceDiv.classList.toggle('last-moved', gameState.lastMove && gameState.lastMove.r2 === r && gameState.lastMove.c2 === c);
+            pieceDiv.style.opacity = '1';
+            pieceDiv.style.transform = pieceDiv.classList.contains('selected') ? 'scale(1.15)' : 'scale(1)';
+          }
+        }
+      }
+
+      // 4. 清理被吃掉的棋子 (淡出動畫後刪除)
+      const pieces = grid.querySelectorAll('.piece');
+      pieces.forEach(pieceDiv => {
+        if (!currentActiveIds.has(pieceDiv.id)) {
+          pieceDiv.style.opacity = '0';
+          pieceDiv.style.transform = 'scale(0.5)';
+          setTimeout(() => { if (pieceDiv.parentNode) pieceDiv.remove(); }, 300); 
+        }
+      });
     }
 
     function drawSVGBoard() {
       let getX = c => (c + 0.5) * (100 / 9) + '%'; let getY = r => (r + 0.5) * (100 / 10) + '%';
-      let svg = `<svg width="100%" height="100%" overflow="visible">`;
-      
-      // 【恢復】SVG 線條顏色改回深色以對應淡黃色棋盤
-      const stroke = `stroke="#333" stroke-width="1.5"`; 
-      
+      let svg = `<svg width="100%" height="100%" overflow="visible">`; 
+      const stroke = `stroke="#333" stroke-width="1.5"`; // 恢復深色線條
       for (let c = 0; c < 9; c++) {
         if (c === 0 || c === 8) { svg += `<line x1="${getX(c)}" y1="${getY(0)}" x2="${getX(c)}" y2="${getY(9)}" ${stroke} />`; } 
         else { svg += `<line x1="${getX(c)}" y1="${getY(0)}" x2="${getX(c)}" y2="${getY(4)}" ${stroke} />`; svg += `<line x1="${getX(c)}" y1="${getY(5)}" x2="${getX(c)}" y2="${getY(9)}" ${stroke} />`; }
@@ -309,14 +408,13 @@
       svg += `<line x1="${getX(3)}" y1="${getY(0)}" x2="${getX(5)}" y2="${getY(2)}" ${stroke} />`; svg += `<line x1="${getX(5)}" y1="${getY(0)}" x2="${getX(3)}" y2="${getY(2)}" ${stroke} />`;
       svg += `<line x1="${getX(3)}" y1="${getY(7)}" x2="${getX(5)}" y2="${getY(9)}" ${stroke} />`; svg += `<line x1="${getX(5)}" y1="${getY(7)}" x2="${getX(3)}" y2="${getY(9)}" ${stroke} />`;
       
-      // 【恢復】文字顏色改回 #333
       const textStyle = `font-size: var(--font-size); font-weight: bold; fill: #333; text-anchor: middle; dominant-baseline: central;`;
       svg += `<text x="27.7%" y="50.5%" style="${textStyle}">楚</text>`;
       svg += `<text x="38.8%" y="50.5%" style="${textStyle}">河</text>`;
       svg += `<text x="61.1%" y="50.5%" style="${textStyle}">漢</text>`;
       svg += `<text x="72.2%" y="50.5%" style="${textStyle}">界</text>`;
       svg += `</svg>`; document.getElementById('board-svg-layer').innerHTML = svg;
-    }
+    } 
 
     function getColor(p) { return p === '' ? '' : (p === p.toLowerCase() ? 'b' : 'r'); }
     function isMoveLegal(board, r1, c1, r2, c2) {
