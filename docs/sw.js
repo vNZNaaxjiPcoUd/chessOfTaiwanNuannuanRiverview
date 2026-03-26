@@ -1,10 +1,15 @@
-const CACHE_NAME = 'xq-v1.0.0'; 
+const CACHE_NAME = 'xq-v1.0.1'; 
 
 // 這裡列出需要被快取到手機/電腦裡的靜態檔案
 const urlsToCache = [
   './',
   './index.html',
+  './localChess.html',
+  './chessOne.html',
+  './classical.html',
+  './lobby.html',
   './manifest.json',
+  './manifest_local.json',
   './icon-192.png',
   './icon-512.png'
 ];
