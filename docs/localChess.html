@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="象棋">
 
-  <style>
+<style>
     /* 針對 iPhone 最佳化：禁止反白、禁止長按選單、禁止雙擊縮放 */
     *, *::before, *::after { 
       box-sizing: border-box; 
@@ -25,19 +25,27 @@
     html { -ms-overflow-style: none; scrollbar-width: none; }
 
     :root {
-      /* 【修改】因為底部按鈕變小了，把扣除的空間從 85px 縮小到 50px，讓棋盤有更多空間放大 */
+      /* 扣除最小化底部控制列約 50px */
       --board-max-width: 98vw;
       --board-max-height: calc(100dvh - 50px - env(safe-area-inset-bottom, 0px));
       --cell-size: min(calc(var(--board-max-width) / 9.5), calc(var(--board-max-height) / 11)); 
       --piece-size: calc(var(--cell-size) * 0.88); 
       --font-size: calc(var(--piece-size) * 0.55);
-      --board-color: #e4c695;
+      
+      /* 暗色模式，但棋盤保持淡黃色 */
+      --body-background: #000000; 
+      --board-color: #e4c695; /* 【恢復】原來的淡黃色 */
+      --text-main: #ffffff; 
+      --bottom-bar-bg: #1a1a1a; 
+      --turn-info-bg: #333333; 
+      --turn-info-border: #555555; 
     }
 
     /* 滿版設定，不允許滑動 */
     body { 
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-      background: #f0f0f0; 
+      background: var(--body-background); /* 【修改】 */
+      color: var(--text-main); /* 【修改】預設文字白色 */
       margin: 0; 
       padding: 0; 
       display: flex;
@@ -56,14 +64,14 @@
       align-items: center;
       position: relative;
       width: 100%;
-      min-height: 0; /* 【關鍵修正】防止內容過大時撐破 flex 容器 */
+      min-height: 0; /* 防止擠壓 */
     }
 
     #board-container {
       background: var(--board-color); 
-      border: 3px solid #333;
+      border: 3px solid #333; /* 【恢復】因為棋盤變亮了，外框改回較深的 #333 比較好看 */
       padding: calc(var(--cell-size) / 2.2); 
-      box-shadow: 2px 5px 15px rgba(0,0,0,0.3);
+      box-shadow: 2px 5px 15px rgba(0,0,0,0.6); 
       border-radius: 6px; 
     }
     
@@ -87,49 +95,52 @@
       z-index: 10;
       display: flex; justify-content: center; align-items: center; 
       font-weight: bold; font-size: var(--font-size); 
-      box-shadow: 2px 2px 5px rgba(0,0,0,0.4); 
-      background: #fdf6e3; 
-      border: 2px solid #333; 
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.6); /* 【修改】陰影加深 */
+      background: #fdf6e3; /* 棋子本身保持木色 */
+      border: 2px solid #333; /* 棋子邊框保持深色 */
     }
+    /* 黑棋字體在暗色背景下需更明顯，保持原有顏色 */
     .piece.red { color: #d32f2f; border-color: #d32f2f; }
     .piece.black { color: #212121; border-color: #212121; }
+    
+    /* 【修改】選取與移動提示顏色調整，使其更醒目 */
     .piece.selected { box-shadow: 0 0 10px 4px #00BCD4; transform: scale(1.15); z-index: 15; } 
     .cell.valid-move::after { content: ''; position: absolute; width: calc(var(--cell-size) * 0.3); height: calc(var(--cell-size) * 0.3); background: rgba(0, 188, 212, 0.7); border-radius: 50%; z-index: 12; }
+    
     .cell.last-move-origin::before { content: ''; position: absolute; width: calc(var(--cell-size) * 0.4); height: calc(var(--cell-size) * 0.4); background-color: rgba(255, 152, 0, 0.5); border-radius: 50%; z-index: 5; }
     .piece.last-moved { box-shadow: 0 0 0 3px #FF9800, 0 0 15px 4px rgba(255, 152, 0, 0.7); z-index: 14; }
 
-    /* 底部控制列 (包含回合提示與所有按鈕) */
+    /* 底部控制列 (最小化且暗色化) */
     .bottom-bar {
       display: flex;
       justify-content: space-evenly;
       align-items: center;
       width: 100%;
-      background: #ffffff;
-      /* 【修改】縮小上下 padding */
-      padding: 4px 5px calc(4px + env(safe-area-inset-bottom, 0px)) 5px;
-      box-shadow: 0 -3px 10px rgba(0,0,0,0.1);
+      background: var(--bottom-bar-bg); /* 【修改】 */
+      padding: 4px 5px calc(4px + env(safe-area-inset-bottom, 0px)) 5px; /* 最小化 padding */
+      box-shadow: 0 -3px 10px rgba(0,0,0,0.3); /* 【修改】 */
       z-index: 50;
-      flex-shrink: 0; 
+      flex-shrink: 0;
     }
-
-    /* 按鈕與回合提示 (縮小字體與按鈕大小) */
+    
     .bottom-bar > div, .bottom-bar > button {
-      /* 【修改】縮小按鈕內部的留白 */
-      padding: 4px 10px;
-      /* 【修改】縮小字體大小，最大限制在 16px */
-      font-size: clamp(12px, 3.5vw, 16px);
+      padding: 4px 10px; /* 最小化 padding */
+      font-size: clamp(12px, 3.5vw, 16px); /* 最小化字體 */
       border-radius: 6px;
       font-weight: bold;
       white-space: nowrap;
     }
 
     #turn-info {
-      background: #eee;
-      border: 1px solid #ccc;
-      box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+      background: #ffffff; /* 【修改】純白/淺色背景 */
+      border: 2px solid #ccc; /* 【修改】加粗一點邊框，讓紅黑邊框切換時更明顯 */
+      font-weight: 900; /* 【修改】加粗字體，提升閱讀性 */
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15); /* 微微的陰影讓它看起來更有質感 */
+      text-align: center;
+      min-width: 60px; /* 確保「紅方」與「黑方」切換時寬度一致不會跳動 */
     }
     
-    .btn { color: white; border: none; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    .btn { color: white; border: none; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.4); }
     .btn:active { transform: scale(0.95); box-shadow: 0 0 2px rgba(0,0,0,0.2); }
     .btn-undo { background-color: #ff9800; } 
     .btn-restart { background-color: #4CAF50; }
@@ -138,19 +149,20 @@
     .check-alert { 
       position: absolute;
       top: 15px;
-      color: red; 
+      color: #ff4444; /* 【修改】更亮的紅色 */
       font-size: 24px; 
       font-weight: bold; 
       animation: blink 1s infinite; 
       display: none; 
-      background: rgba(255,255,255,0.85);
+      background: rgba(0,0,0,0.7); /* 【修改】暗色半透明背景 */
       padding: 5px 20px;
       border-radius: 20px;
-      box-shadow: 0 0 15px rgba(255,0,0,0.5);
+      box-shadow: 0 0 15px rgba(255,68,68,0.5); /* 【修改】 */
       z-index: 100;
     }
     @keyframes blink { 50% { opacity: 0; } }
   </style>
+
 </head>
 <body>
 
@@ -284,7 +296,11 @@
 
     function drawSVGBoard() {
       let getX = c => (c + 0.5) * (100 / 9) + '%'; let getY = r => (r + 0.5) * (100 / 10) + '%';
-      let svg = `<svg width="100%" height="100%" overflow="visible">`; const stroke = `stroke="#333" stroke-width="1.5"`;
+      let svg = `<svg width="100%" height="100%" overflow="visible">`;
+      
+      // 【恢復】SVG 線條顏色改回深色以對應淡黃色棋盤
+      const stroke = `stroke="#333" stroke-width="1.5"`; 
+      
       for (let c = 0; c < 9; c++) {
         if (c === 0 || c === 8) { svg += `<line x1="${getX(c)}" y1="${getY(0)}" x2="${getX(c)}" y2="${getY(9)}" ${stroke} />`; } 
         else { svg += `<line x1="${getX(c)}" y1="${getY(0)}" x2="${getX(c)}" y2="${getY(4)}" ${stroke} />`; svg += `<line x1="${getX(c)}" y1="${getY(5)}" x2="${getX(c)}" y2="${getY(9)}" ${stroke} />`; }
@@ -293,14 +309,14 @@
       svg += `<line x1="${getX(3)}" y1="${getY(0)}" x2="${getX(5)}" y2="${getY(2)}" ${stroke} />`; svg += `<line x1="${getX(5)}" y1="${getY(0)}" x2="${getX(3)}" y2="${getY(2)}" ${stroke} />`;
       svg += `<line x1="${getX(3)}" y1="${getY(7)}" x2="${getX(5)}" y2="${getY(9)}" ${stroke} />`; svg += `<line x1="${getX(5)}" y1="${getY(7)}" x2="${getX(3)}" y2="${getY(9)}" ${stroke} />`;
       
-      // 使用 var(--font-size) 讓楚河漢界的字體大小完全與棋子字體連動
+      // 【恢復】文字顏色改回 #333
       const textStyle = `font-size: var(--font-size); font-weight: bold; fill: #333; text-anchor: middle; dominant-baseline: central;`;
       svg += `<text x="27.7%" y="50.5%" style="${textStyle}">楚</text>`;
       svg += `<text x="38.8%" y="50.5%" style="${textStyle}">河</text>`;
       svg += `<text x="61.1%" y="50.5%" style="${textStyle}">漢</text>`;
       svg += `<text x="72.2%" y="50.5%" style="${textStyle}">界</text>`;
       svg += `</svg>`; document.getElementById('board-svg-layer').innerHTML = svg;
-    } 
+    }
 
     function getColor(p) { return p === '' ? '' : (p === p.toLowerCase() ? 'b' : 'r'); }
     function isMoveLegal(board, r1, c1, r2, c2) {
