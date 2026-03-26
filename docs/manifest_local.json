@@ -1,0 +1,22 @@
+{
+  "name": "象棋",
+  "short_name": "象棋",
+  "description": "象棋遊戲",
+  "start_url": "./localChess.html",
+  "display": "standalone",
+  "background_color": "#f0f0f0",
+  "theme_color": "#333333",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
