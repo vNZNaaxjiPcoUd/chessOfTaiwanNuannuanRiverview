@@ -29,6 +29,9 @@
     .success { color: #2e7d32; } .error { color: #d32f2f; } .loading { color: #1976d2; }
     
     .divider { border: 0; height: 1px; background: #ddd; margin: 25px 0; }
+
+    #noShowDefault {display:none;}
+
   </style>
 </head>
 <body>
@@ -37,33 +40,44 @@
 
   <div class="control-panel">
     <label for="room-input">🏠 目標房間名</label>
-    <input type="text" id="room-input" placeholder="棋局名">
+    <input type="text" id="room-input" placeholder="棋局名" oninput="roomUpdate()">
     
-    <button onclick="jumpToRoom()" class="btn-orange">🚪 進入棋盤房間</button>
+    <div id="noShowDefault">
+      <button onclick="jumpToRoom()" class="btn-orange">🚪 進入棋盤房間</button>
 
-    <label for="admin-password">🔑 密碼</label>
-    <input type="password" id="admin-password" placeholder="輸入密碼(板橋電話8碼)">
+      <label for="admin-password">🔑 密碼</label>
+      <input type="password" id="admin-password" placeholder="輸入密碼(板橋電話8碼)">
 
-    <label for="scenario-select">♟️ 選擇棋局 <span id="count-display">載入中...</span></label>
-    <select id="scenario-select"></select>
-    <button id="set-btn" onclick="applyScenario()">🚀 佈局</button>
+      <label for="scenario-select">♟️ 選擇棋局 <span id="count-display">載入中...</span></label>
+      <select id="scenario-select"></select>
+      <button id="set-btn" onclick="applyScenario()">🚀 佈局</button>
 
-    <hr class="divider">
+      <hr class="divider">
 
-    <label for="custom-fen">🧩 貼上FEN</label>
-    <input type="text" id="custom-fen" placeholder="貼上盤面FEN.">
-    <button id="set-custom-btn" class="btn-blue" onclick="applyCustomFen()">🚀 自訂佈局</button>
+      <label for="custom-fen">🧩 貼上FEN</label>
+      <input type="text" id="custom-fen" placeholder="貼上盤面FEN.">
+      <button id="set-custom-btn" class="btn-blue" onclick="applyCustomFen()">🚀 自訂佈局</button>
 
-    <div id="status-msg"></div>
-    <div style="text-align:center;">
-      <a href="https://app.jwint.net/chessAdmin/cleanExistPlayer" target="_blank" style="display:inline-block; margin-top:15px; text-decoration:none; color:#1976d2;">🚀 強制棋手退出</a> | 
-      <a href="https://n.jwint.net/r?sqyq501" target="_blank" style="display:inline-block; margin-top:15px; text-decoration:none; color:#1976d2;">🚀 棋局解說</a> | 
-      <a href="/" style="display:inline-block; margin-top:15px; text-decoration:none; color:#1976d2;">🚀 回到大廳</a>
+      <div id="status-msg"></div>
+      <div style="text-align:center;">
+        <a href="https://app.jwint.net/chessAdmin/cleanExistPlayer" target="_blank" style="display:inline-block; margin-top:15px; text-decoration:none; color:#1976d2;">🚀 強制棋手退出</a> | 
+        <a href="https://n.jwint.net/r?sqyq501" target="_blank" style="display:inline-block; margin-top:15px; text-decoration:none; color:#1976d2;">🚀 棋局解說</a> | 
+        <a href="/" style="display:inline-block; margin-top:15px; text-decoration:none; color:#1976d2;">🚀 回到大廳</a>
+      </div>
     </div>
   </div>
 
-  <script src="classical.js">
-
+  <script src="classical.js"></script>
+  <script>
+    function roomUpdate() {
+      const roomName = document.getElementById('room-input').value.trim();
+      const actionArea = document.getElementById('noShowDefault');
+      if (roomName.length > 0) {
+        actionArea.style.display = 'block';
+      }else{
+        actionArea.style.display = 'none';
+      }
+    }
   </script>
 </body>
 </html>
