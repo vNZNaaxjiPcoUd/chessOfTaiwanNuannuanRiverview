@@ -97,7 +97,7 @@
     async function init() { 
       let storedAiRole = sessionStorage.getItem('xq_ai_mode_' + room);
       if (storedAiRole) { isAiMode = true; aiRole = storedAiRole; }
-      let data = await updateChess('join', { playerId: myId }); 
+      let data = await updateChess('join', room, { playerId: myId }); 
       if (data) onJoined(data); 
       setInterval(pollState, 1500);   
     }
@@ -107,7 +107,7 @@
     async function pollState() { 
       if (isSyncing) return; 
       let fetchActionTime = lastActionTime; 
-      let data = await updateChess('get'); 
+      let data = await updateChess('get', room); 
       if (isSyncing || fetchActionTime !== lastActionTime) return; 
       if (data && data.state) {
         if (isReplaying) {
@@ -121,10 +121,10 @@
     async function requestRole(role) {
       document.getElementById('role-modal').style.display = 'none';
       isSyncing = true; 
-      if (isAiMode) { updateInformation("正在清理電腦玩家..."); await updateChess('closeThisRoomForNewBeginner', { targetRoom: room }); }
+      if (isAiMode) { updateInformation("正在清理電腦玩家..."); await updateChess('closeThisRoomForNewBeginner', room, { targetRoom: room }); }
       isAiMode = false; sessionStorage.removeItem('xq_ai_mode_' + room); 
       
-      let data = await updateChess('takeRole', { playerId: myId, role: role });
+      let data = await updateChess('takeRole', room, { playerId: myId, role: role });
       if (data && data.success) {
         myRole = data.role; sessionStorage.setItem('xq_role_selected_' + room, 'true'); hasSelectedRoleLocal = 'true'; updateRoleBadge(); 
         updateInformation(`成功切換身分：${role === 'b' ? '黑方' : (role === 'r' ? '紅方' : '觀戰者')}`);
@@ -140,17 +140,17 @@
       document.getElementById('role-modal').style.display = 'none';
       updateInformation(`正在準備單機模式 (${difficulty === 'hard' ? '高級' : '簡單'})...`);
       isSyncing = true; 
-      await updateChess('closeThisRoomForNewBeginner', { targetRoom: room });
+      await updateChess('closeThisRoomForNewBeginner', room, { targetRoom: room });
 
       let botRole = humanRole === 'r' ? 'b' : 'r';
       isAiMode = true; aiRole = botRole;
       sessionStorage.setItem('xq_ai_mode_' + room, botRole);
       sessionStorage.setItem('xq_ai_level_' + room, difficulty); 
       
-      let data = await updateChess('takeRole', { playerId: myId, role: humanRole });
+      let data = await updateChess('takeRole', room, { playerId: myId, role: humanRole });
       if (data && data.success) {
         myRole = data.role; sessionStorage.setItem('xq_role_selected_' + room, 'true'); hasSelectedRoleLocal = 'true'; updateRoleBadge(); 
-        let aiData = await updateChess('takeRole', { playerId: AI_ID, role: botRole });
+        let aiData = await updateChess('takeRole', room, { playerId: AI_ID, role: botRole });
         if (aiData && aiData.state) updateUI(aiData.state); else updateUI(data.state);
       }
       isSyncing = false; lastActionTime = Date.now();
@@ -164,7 +164,7 @@
       else if (actionType === 'cancel') { updateInformation("已取消重新開局請求..."); }
       
       isSyncing = true; lastActionTime = Date.now();
-      let data = await updateChess('restart', { playerId: myId, restartAction: actionType }); 
+      let data = await updateChess('restart', room, { playerId: myId, restartAction: actionType }); 
       if (data && data.state) updateUI(data.state); 
       isSyncing = false;
     }
@@ -181,7 +181,7 @@
       else if (actionType === 'cancel') { updateInformation("已取消悔棋請求..."); }
       
       isSyncing = true; lastActionTime = Date.now();
-      let data = await updateChess('undo', { playerId: myId, undoAction: actionType }); 
+      let data = await updateChess('undo', room, { playerId: myId, undoAction: actionType }); 
       if (data && data.state) updateUI(data.state); 
       isSyncing = false;
     }
@@ -280,8 +280,8 @@
           if (currentBoardStr !== lastSurrenderedBoard) { isAiThinking = true; setTimeout(makeAIMove, 50); } 
           else { updateInformation("對局結束：電腦無棋可走"); }
         }
-        if (state.restartRequest === myRole) { updateChess('restart', { playerId: AI_ID, restartAction: 'agree' }); }
-        if (state.undoRequest === myRole) { updateChess('undo', { playerId: AI_ID, undoAction: 'agree' }); }
+        if (state.restartRequest === myRole) { updateChess('restart', room, { playerId: AI_ID, restartAction: 'agree' }); }
+        if (state.undoRequest === myRole) { updateChess('undo', room, { playerId: AI_ID, undoAction: 'agree' }); }
       }
 
       let modal = document.getElementById('role-modal');
@@ -509,7 +509,7 @@
       if (isProcessingQueue) return; isProcessingQueue = true; isSyncing = true;
       while (syncQueue.length > 0) {
         let stateToSync = syncQueue[syncQueue.length - 1]; syncQueue = []; 
-        try { await updateChess('move', { state: stateToSync }); } catch(e) {}
+        try { await updateChess('move', room, { state: stateToSync }); } catch(e) {}
       }
       isProcessingQueue = false; isSyncing = false;
     }
