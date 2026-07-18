@@ -1,66 +1,174 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- 確保適配手機寬度且禁止雙擊縮放 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>象棋社</title>
   
   <link rel="manifest" href="./manifest.json">
-  <meta name="theme-color" content="#333333">
+  <meta name="theme-color" content="#F2F2F7">
   <link rel="apple-touch-icon" href="./icon-192.png">
 
   <style>
+    /* 定義 iOS 風格的色彩變數 */
+    :root {
+      --bg-color: #F2F2F7;        /* iOS 預設系統底色 */
+      --card-bg: #FFFFFF;
+      --text-main: #1C1C1E;
+      --text-sub: #8E8E93;
+      --tint-green: #34C759;      /* iOS 綠色 */
+      --tint-blue: #007AFF;       /* iOS 藍色 */
+      --tint-orange: #FF9500;     /* iOS 橘色 */
+    }
+
     body { 
-      font-family: sans-serif; text-align: center; background: #f0f0f0; 
-      margin: 0; padding: 20px; display: flex; flex-direction: column; 
-      align-items: center; justify-content: center; min-height: 80vh;
+      /* 載入蘋果系統字型 */
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif; 
+      text-align: center; 
+      background: var(--bg-color); 
+      margin: 0; 
+      /* 支援安全區域，避開瀏海與底部橫條 */
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: center; 
+      min-height: 100vh;
+      -webkit-text-size-adjust: 100%;
+      -webkit-tap-highlight-color: transparent; /* 移除點擊時的灰色高光 */
     }
+
     .card {
-      background: white; padding: 30px; border-radius: 12px; 
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 90%; max-width: 350px;
+      background: var(--card-bg); 
+      padding: 32px 24px; 
+      border-radius: 20px; 
+      box-shadow: 0 8px 30px rgba(0,0,0,0.06); 
+      width: 85%; 
+      max-width: 340px;
+      box-sizing: border-box;
     }
-    h2 { margin-top: 0; color: #333; }
+
+    h2 { 
+      margin-top: 0; 
+      margin-bottom: 8px;
+      color: var(--text-main); 
+      font-weight: 600;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      color: var(--text-sub); 
+      font-size: 15px;
+      margin-top: 0;
+      margin-bottom: 20px;
+    }
     
     input[type="text"] {
-      width: 100%; box-sizing: border-box; padding: 12px; font-size: 18px; 
-      margin: 15px 0; border: 2px solid #ccc; border-radius: 8px; text-align: center;
+      -webkit-appearance: none; /* 移除 Safari 預設樣式 */
+      width: 100%; 
+      box-sizing: border-box; 
+      padding: 14px; 
+      font-size: 17px; /* 16px 以上可防止 Safari 輸入時自動放大 */
+      margin: 8px 0 20px; 
+      background: #F2F2F7;
+      border: 1.5px solid transparent; 
+      border-radius: 12px; 
+      text-align: center;
+      color: var(--text-main);
+      transition: all 0.3s ease;
     }
-    input[type="text"]:focus { outline: none; border-color: #2196F3; }
 
-    #action-area { display: none; margin-top: 15px; }
+    input[type="text"]::placeholder {
+      color: #C7C7CC;
+    }
+
+    input[type="text"]:focus { 
+      outline: none; 
+      background: #FFFFFF;
+      border-color: var(--tint-blue); 
+      box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.15);
+    }
+
+    #action-area { 
+      display: none; 
+      margin-bottom: 24px; 
+      animation: fadeIn 0.3s ease-out forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
 
     .btn {
-      display: block; width: 100%; padding: 12px; font-size: 18px; 
-      border: none; border-radius: 8px; cursor: pointer; font-weight: bold; 
-      color: white; margin-bottom: 10px; text-decoration: none; box-sizing: border-box;
+      -webkit-appearance: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%; 
+      padding: 14px; 
+      font-size: 17px; 
+      border: none; 
+      border-radius: 12px; 
+      cursor: pointer; 
+      font-weight: 600; 
+      color: white; 
+      margin-bottom: 12px; 
+      text-decoration: none; 
+      box-sizing: border-box;
+      transition: transform 0.1s ease, opacity 0.2s ease;
+      touch-action: manipulation;
     }
-    .btn-join { background: #4CAF50; }
-    .btn-join:hover { background: #388E3C; }
-    .btn-copy { background: #FF9800; }
-    .btn-copy:hover { background: #F57C00; }
     
-    .hint { font-size: 14px; color: #666; margin-top: 15px; }
+    /* 點擊時的縮放回饋 */
+    .btn:active { 
+      transform: scale(0.96); 
+      opacity: 0.85; 
+    }
+
+    .btn-join { background: var(--tint-green); }
+    .btn-copy { background: var(--tint-blue); } /* 改用 iOS 藍色更顯一致 */
+    
+    .links-container {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid #E5E5EA;
+    }
+
+    .links-container a { 
+      font-size: 14px; 
+      color: var(--tint-blue); 
+      text-decoration: none; 
+      font-weight: 500;
+    }
+    
+    .links-container a:active {
+      opacity: 0.5;
+    }
   </style>
 </head>
 <body>
 
   <div class="card">
-    <h2>棋社大廳</h2>
-    <p style="color: #555; margin-bottom: 5px;">想進入的房間：</p>
+    <h2>象棋社</h2>
+    <p class="subtitle">進入棋局對戰</p>
     
-    <input type="text" id="roomInput" placeholder="例如：嘉義西區、龍山寺" value="" oninput="updateButtons()">
+    <input type="text" id="roomInput" placeholder="例如：龍山寺棋局" value="" oninput="updateButtons()">
     
     <div id="action-area">
       <a href="#" id="joinBtn" class="btn btn-join">進入</a>
-      
-      <button class="btn btn-copy" onclick="copyInviteLink()">📋邀請網址</button>
+      <button class="btn btn-copy" onclick="copyInviteLink()">📋 複製邀請網址</button>
     </div>
     
-    <!--div class="hint">就能在同一個棋盤對戰！</div-->
-    <div class="hint"><a href="./classical.html">經典棋局布局</a></div>
-    <div class="hint"><a href="https://n.jwint.net/r?chess" target="_blank">使用說明</a></div>
-    <div class="hint"><a href="./localChess.html" target="_blank">本地象棋</a></div>
-    
+    <div class="links-container">
+      <a href="./classical.html">經典殘局</a>
+      <a href="./localChess.html" target="_blank">本地象棋</a>
+      <a href="https://n.jwint.net/r?chess" target="_blank">使用說明</a>
+    </div>
   </div>
 
   <script>
@@ -83,19 +191,12 @@
       const joinBtn = document.getElementById('joinBtn');
       
       if (roomName.length > 0) {
-        // 顯示按鈕區塊
         actionArea.style.display = 'block';
-        
-        // 產生目標網址 (自動把中文進行 URL 編碼)
-        // 取得目前大廳網址的目錄路徑，替換為 index.html
-        //const baseUrl = window.location.href.split('lobby.html')[0].replace(/\/$/, ""); 
         currentInviteUrl = `./chessOne?${encodeURIComponent(roomName)}`;
         
-        // 更新按鈕的連結與文字
         joinBtn.href = currentInviteUrl;
-        joinBtn.textContent = `到「${roomName}」棋局看看`;
+        joinBtn.textContent = `前往「${roomName}」`;
       } else {
-        // 如果清空輸入框，就隱藏按鈕
         actionArea.style.display = 'none';
       }
     }
@@ -104,18 +205,21 @@
     function copyInviteLink() {
       if (!currentInviteUrl) return;
       
-      navigator.clipboard.writeText(currentInviteUrl).then(() => {
+      // 確保產生絕對網址以供分享
+      const fullUrl = new URL(currentInviteUrl, window.location.href).href;
+      
+      navigator.clipboard.writeText(fullUrl).then(() => {
         const copyBtn = document.querySelector('.btn-copy');
-        const originalText = copyBtn.textContent;
-        copyBtn.textContent = "✅ 已複製！請貼給朋友";
-        copyBtn.style.background = "#4CAF50";
+        const originalText = copyBtn.innerHTML;
+        copyBtn.innerHTML = "✅ 已複製！";
+        copyBtn.style.background = "var(--tint-green)";
         
         setTimeout(() => {
-          copyBtn.textContent = originalText;
-          copyBtn.style.background = "#FF9800";
+          copyBtn.innerHTML = originalText;
+          copyBtn.style.background = "var(--tint-blue)";
         }, 2000);
       }).catch(err => {
-        alert("複製失敗，請手動複製網址：" + currentInviteUrl);
+        alert("複製失敗，請手動複製網址：" + fullUrl);
       });
     }
   </script>
