@@ -1,1 +1,753 @@
-if("serviceWorker"in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("./sw.js")["catch"](e=>{})})}let GAS_URL="";const GAS_URL_ENC="U2FsdGVkX18wOEj59FpFj9Aybfc0OH5Kd8vcvB//PWWgXMF5KZ2dGRn1TM5OhAVAxqA7sSUiyxhiIcK4UXcaxoWoBwaPI9PqMgHaPOf3QEt35WwW2ZUStDsWagvE9q0FPhW5/79Zl4gm5vJFnMgvpyQ5gC6dB7xgEpAHNl9wxRc=";let room="\u6995\u6A39\u4E0B";const queryString=window.location.search.substring(0x1);if(queryString){const urlParams=new URLSearchParams(window.location.search);urlParams.has("room")?room=decodeURIComponent(urlParams.get("room")):room=decodeURIComponent(queryString.split("&")[0x0].split("=")[0x0])}document.getElementById("room-title").textContent=""+room;document.getElementById("modal-room-name").textContent=room;let myId=sessionStorage.getItem("xq_id");if(!myId){myId=Math.random().toString(0x24).substr(0x2,0x9);sessionStorage.setItem("xq_id",myId)}const AI_ID="BOT_"+myId;let isAiMode=!0x1,aiRole=null,isAiThinking=!0x1,lastSurrenderedBoard=null,hasSelectedRoleLocal=sessionStorage.getItem("xq_role_selected_"+room),gameState=null,myRole=null,selectedCell=null,isSyncing=!0x1,lastActionTime=Date.now(),isReplaying=!0x1,isReplayPaused=!0x1,replayInterval=null,replayStep=0x0,replaySteps=[],replayBoard=null;const piecesText={k:"\u5C07",a:"\u58EB",e:"\u8C61",h:"\u99AC",r:"\u8ECA",c:"\u7832",p:"\u5352",K:"\u5E25",A:"\u4ED5",E:"\u76F8",H:"\u508C",R:"\u4FE5",C:"\u70AE",P:"\u5175"};function getMoveNotation(p,r1,c1,r2,c2){if(!p){return""}let color=p===p.toLowerCase()?"b":"r",colorStr=color==="b"?"\u9ED1":"\u7D05",pName=piecesText[p],startCol=color==="r"?0x9-c1:c1+0x1,dir="";r1===r2?dir="\u5E73":color==="r"?dir=r2<r1?"\u9032":"\u9000":dir=r2>r1?"\u9032":"\u9000";let endVal="",pType=p.toLowerCase();dir==="\u5E73"?endVal=color==="r"?0x9-c2:c2+0x1:["r","c","p","k"].includes(pType)?endVal=Math.abs(r1-r2):endVal=color==="r"?0x9-c2:c2+0x1;return""+colorStr+pName+startCol+dir+endVal}function showRoleModal(){document.getElementById("role-modal").style.display="flex";document.getElementById("close-modal-btn").style.display="block";if(gameState){updateUI(gameState)}}function closeRoleModal(){document.getElementById("role-modal").style.display="none"}let infoHistory=[],lastText="";function updateInformation(text){if(text!==lastText){infoHistory.unshift(text);if(infoHistory.length>0x64){infoHistory.pop()}document.getElementById("info").innerHTML=infoHistory.join("<br>");lastText=text}}function drawSVGBoard(){let getX=c=>{return(c+0.5)*(0x64/0x9)+"%"},getY=r=>{return(r+0.5)*(0x64/0xa)+"%"},svg="<svg width=\"100%\" height=\"100%\" overflow=\"visible\">";const stroke="stroke=\"#333\" stroke-width=\"1.5\"";for(let c=0x0;c<0x9;c++)c===0x0||c===0x8?svg+="<line x1=\""+getX(c)+"\" y1=\""+getY(0x0)+"\" x2=\""+getX(c)+"\" y2=\""+getY(0x9)+"\" "+stroke+" />":(svg+="<line x1=\""+getX(c)+"\" y1=\""+getY(0x0)+"\" x2=\""+getX(c)+"\" y2=\""+getY(0x4)+"\" "+stroke+" />",svg+="<line x1=\""+getX(c)+"\" y1=\""+getY(0x5)+"\" x2=\""+getX(c)+"\" y2=\""+getY(0x9)+"\" "+stroke+" />");for(let r=0x0;r<0xa;r++)svg+="<line x1=\""+getX(0x0)+"\" y1=\""+getY(r)+"\" x2=\""+getX(0x8)+"\" y2=\""+getY(r)+"\" "+stroke+" />";svg+="<line x1=\""+getX(0x3)+"\" y1=\""+getY(0x0)+"\" x2=\""+getX(0x5)+"\" y2=\""+getY(0x2)+"\" "+stroke+" />";svg+="<line x1=\""+getX(0x5)+"\" y1=\""+getY(0x0)+"\" x2=\""+getX(0x3)+"\" y2=\""+getY(0x2)+"\" "+stroke+" />";svg+="<line x1=\""+getX(0x3)+"\" y1=\""+getY(0x7)+"\" x2=\""+getX(0x5)+"\" y2=\""+getY(0x9)+"\" "+stroke+" />";svg+="<line x1=\""+getX(0x5)+"\" y1=\""+getY(0x7)+"\" x2=\""+getX(0x3)+"\" y2=\""+getY(0x9)+"\" "+stroke+" />";svg+="<text x=\"27.7%\" y=\"50.5%\" font-size=\"clamp(18px, 5vw, 26px)\" font-weight=\"bold\" fill=\"#333\" text-anchor=\"middle\" dominant-baseline=\"central\">\u695A</text>";svg+="<text x=\"38.8%\" y=\"50.5%\" font-size=\"clamp(18px, 5vw, 26px)\" font-weight=\"bold\" fill=\"#333\" text-anchor=\"middle\" dominant-baseline=\"central\">\u6CB3</text>";svg+="<text x=\"61.1%\" y=\"50.5%\" font-size=\"clamp(18px, 5vw, 26px)\" font-weight=\"bold\" fill=\"#333\" text-anchor=\"middle\" dominant-baseline=\"central\">\u6F22</text>";svg+="<text x=\"72.2%\" y=\"50.5%\" font-size=\"clamp(18px, 5vw, 26px)\" font-weight=\"bold\" fill=\"#333\" text-anchor=\"middle\" dominant-baseline=\"central\">\u754C</text>";for(let c=0x0;c<0x9;c++){let topNum=c+0x1,bottomNum=0x9-c;svg+="<text x=\""+getX(c)+"\" y=\"-3%\" font-size=\"clamp(12px, 2.5vw, 15px)\" font-weight=\"bold\" fill=\"#555\" text-anchor=\"middle\" dominant-baseline=\"central\">"+topNum+"</text>";svg+="<text x=\""+getX(c)+"\" y=\"103%\" font-size=\"clamp(12px, 2.5vw, 15px)\" font-weight=\"bold\" fill=\"#555\" text-anchor=\"middle\" dominant-baseline=\"central\">"+bottomNum+"</text>"}svg+="</svg>";document.getElementById("board-svg-layer").innerHTML=svg}drawSVGBoard();async function apiCall(action,extraData={}){const payload={action:action,room:room,...extraData};try{const response=await fetch(GAS_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload),redirect:"follow"});return await response.json()}catch(e){return null}}async function init(){let storedAiRole=sessionStorage.getItem("xq_ai_mode_"+room);if(storedAiRole){isAiMode=!0x0;aiRole=storedAiRole}let data=await apiCall("join",{playerId:myId});if(data){onJoined(data)}setInterval(pollState,0x5dc)}function Update_GAS(){const bytes=CryptoJS.AES.decrypt(GAS_URL_ENC,"ZHjn8Defb3nUl15twNELedAO91IzVlt");GAS_URL=bytes.toString(CryptoJS.enc.Utf8)}async function pollState(){if(isSyncing){return}let fetchActionTime=lastActionTime,data=await apiCall("get");if(isSyncing||fetchActionTime!==lastActionTime){return}if(data&&data.state){isReplaying?gameState=data.state:updateUI(data.state)}}async function requestRole(role){document.getElementById("role-modal").style.display="none";isSyncing=!0x0;if(isAiMode){updateInformation("\u6B63\u5728\u6E05\u7406\u96FB\u8166\u73A9\u5BB6...");await apiCall("closeThisRoomForNewBeginner",{targetRoom:room})}isAiMode=!0x1;sessionStorage.removeItem("xq_ai_mode_"+room);let data=await apiCall("takeRole",{playerId:myId,role:role});if(data&&data.success){myRole=data.role;sessionStorage.setItem("xq_role_selected_"+room,"true");hasSelectedRoleLocal="true";updateRoleBadge();updateInformation("\u6210\u529F\u5207\u63DB\u8EAB\u5206\uFF1A"+(role==="b"?"\u9ED1\u65B9":role==="r"?"\u7D05\u65B9":"\u89C0\u6230\u8005"));updateUI(data.state)}else{updateInformation("\u9078\u64C7\u5931\u6557\uFF0C\u8A72\u5EA7\u4F4D\u53EF\u80FD\u5DF2\u88AB\u6436\u5148\uFF01");if(data&&data.state){updateUI(data.state);showRoleModal()}}isSyncing=!0x1;lastActionTime=Date.now()}async function startAiGame(humanRole,difficulty){document.getElementById("role-modal").style.display="none";updateInformation("\u6B63\u5728\u6E96\u5099\u55AE\u6A5F\u6A21\u5F0F ("+(difficulty==="hard"?"\u9AD8\u7D1A":"\u7C21\u55AE")+")...");isSyncing=!0x0;await apiCall("closeThisRoomForNewBeginner",{targetRoom:room});let botRole=humanRole==="r"?"b":"r";isAiMode=!0x0;aiRole=botRole;sessionStorage.setItem("xq_ai_mode_"+room,botRole);sessionStorage.setItem("xq_ai_level_"+room,difficulty);let data=await apiCall("takeRole",{playerId:myId,role:humanRole});if(data&&data.success){myRole=data.role;sessionStorage.setItem("xq_role_selected_"+room,"true");hasSelectedRoleLocal="true";updateRoleBadge();let aiData=await apiCall("takeRole",{playerId:AI_ID,role:botRole});aiData&&aiData.state?updateUI(aiData.state):updateUI(data.state)}isSyncing=!0x1;lastActionTime=Date.now()}async function requestRestart(actionType){if(myRole==="spectator"){return}if(actionType==="request"){if(!confirm("\u5411\u5C0D\u65B9\u767C\u9001\u91CD\u65B0\u958B\u5C40\u8ACB\u6C42\uFF1F")){return}updateInformation("\u5DF2\u767C\u51FA\u91CD\u65B0\u958B\u5C40\u8ACB\u6C42...")}else{if(actionType==="agree"){if(!confirm("\u78BA\u5B9A\u8981\u540C\u610F\u91CD\u65B0\u958B\u5C40\u55CE\uFF1F\u68CB\u76E4\u5C07\u7ACB\u5373\u6E05\u7A7A\u3002")){return}updateInformation("\u5DF2\u540C\u610F\u91CD\u65B0\u958B\u5C40...")}else{if(actionType==="reject"){updateInformation("\u5DF2\u62D2\u7D55\u91CD\u65B0\u958B\u5C40...")}else{if(actionType==="cancel"){updateInformation("\u5DF2\u53D6\u6D88\u91CD\u65B0\u958B\u5C40\u8ACB\u6C42...")}}}}isSyncing=!0x0;lastActionTime=Date.now();let data=await apiCall("restart",{playerId:myId,restartAction:actionType});if(data&&data.state){updateUI(data.state)}isSyncing=!0x1}async function requestUndo(actionType){if(myRole==="spectator"){return}if(actionType==="request"){if(!gameState||!gameState.history||gameState.history.length===0x0){updateInformation("\u76EE\u524D\u6C92\u6709\u53EF\u4EE5\u6094\u7684\u68CB\uFF01");return}if(!confirm("\u5411\u5C0D\u65B9\u767C\u9001\u6094\u68CB\u8ACB\u6C42\uFF1F")){return}updateInformation("\u5DF2\u767C\u51FA\u6094\u68CB\u8ACB\u6C42...")}else{if(actionType==="agree"){if(!confirm("\u78BA\u5B9A\u8981\u540C\u610F\u5C0D\u65B9\u6094\u68CB\u55CE\uFF1F")){return}updateInformation("\u5DF2\u540C\u610F\u6094\u68CB...")}else{if(actionType==="reject"){updateInformation("\u5DF2\u62D2\u7D55\u6094\u68CB...")}else{if(actionType==="cancel"){updateInformation("\u5DF2\u53D6\u6D88\u6094\u68CB\u8ACB\u6C42...")}}}}isSyncing=!0x0;lastActionTime=Date.now();let data=await apiCall("undo",{playerId:myId,undoAction:actionType});if(data&&data.state){updateUI(data.state)}isSyncing=!0x1}function onJoined(data){myRole=data.role||"spectator";updateUI(data.state);myRole==="b"||myRole==="r"?(hasSelectedRoleLocal="true",sessionStorage.setItem("xq_role_selected_"+room,"true")):myRole="spectator";updateRoleBadge()}function updateRoleBadge(){let roleText=myRole==="b"?"\u9ED1\u65B9":myRole==="r"?"\u7D05\u65B9":"\u89C0\u6230\u8005";if(isAiMode){let levelText=sessionStorage.getItem("xq_ai_level_"+room)==="hard"?"\u9AD8\u7D1A":"\u7C21\u55AE";roleText+=" (\u55AE\u6A5F-"+levelText+")"}let badge=document.getElementById("role-info");badge.textContent="\u4F60\u662F\uFF1A"+roleText;badge.className="role-badge "+(myRole==="spectator"?"":"role-"+myRole)}let riClickCnt=0x0,riTimer=null;document.getElementById("role-info").onclick=function(){if(riTimer){clearTimeout(riTimer)}riClickCnt++;if(riClickCnt===0x3){riClickCnt=0x0;const targetRoom=typeof room!=="undefined"?room:"";window.location.href="./lobby.html?"+targetRoom}else{riTimer=setTimeout(()=>{console.log("\u9023\u9EDE\u4E2D\u65B7\uFF0C\u6B21\u6578\u91CD\u7F6E");riClickCnt=0x0},0xbb8)}};function updateUI(state){let oldState=gameState,boardChanged=!0x1;if(oldState){boardChanged=JSON.stringify(oldState.board)!==JSON.stringify(state.board);if(boardChanged){selectedCell=null}let isUndo=!0x1,isRestart=!0x1,oldHistoryLen=oldState.history?oldState.history.length:0x0,newHistoryLen=state.history?state.history.length:0x0;if(newHistoryLen===0x0&&oldHistoryLen>0x0){isRestart=!0x0}else{if(newHistoryLen<oldHistoryLen){isUndo=!0x0}}if(oldState.restartRequest!==state.restartRequest&&state.restartRequest){if(state.restartRequest!==myRole){updateInformation(state.restartRequest==="b"?"\u9ED1\u65B9\u767C\u8D77\u91CD\u65B0\u958B\u5C40\u8ACB\u6C42\uFF01":"\u7D05\u65B9\u767C\u8D77\u91CD\u65B0\u958B\u5C40\u8ACB\u6C42\uFF01")}}if(oldState.undoRequest!==state.undoRequest&&state.undoRequest){if(state.undoRequest!==myRole){updateInformation(state.undoRequest==="b"?"\u9ED1\u65B9\u767C\u8D77\u6094\u68CB\u8ACB\u6C42\uFF01":"\u7D05\u65B9\u767C\u8D77\u6094\u68CB\u8ACB\u6C42\uFF01")}}if(oldState.status!==state.status&&state.status==="check"){updateInformation("\u5C07\u8ECD\uFF01")}if(boardChanged){if(isRestart){updateInformation("\uD83C\uDD95 \u5DF2\u91CD\u65B0\u958B\u5C40")}else{if(isUndo){updateInformation("\u21A9 \u5DF2\u6094\u68CB")}else{if(state.lastMove){let m=state.lastMove,p=state.board[m.r2][m.c2];if(p){let notation=getMoveNotation(p,m.r1,m.c1,m.r2,m.c2);updateInformation(""+notation)}}}}}}gameState=state;if(!isAiThinking&&document.getElementById("info").innerHTML.indexOf("\u96FB\u8166\u7121\u68CB\u53EF\u8D70")===-0x1){let bPlayer=state.players.b?String(state.players.b):"",rPlayer=state.players.r?String(state.players.r):"";if(bPlayer===""&&rPlayer===""){updateInformation("\u6C92\u6709\u4EBA\u5728\u57F7\u68CB")}else{if(bPlayer===""||rPlayer===""){updateInformation("\u7B49\u5F85\u5C0D\u624B\u52A0\u5165...")}else{let turnMsg=state.turn==="b"?"\u8F2A\u5230\uFF1A\u9ED1\u65B9":"\u8F2A\u5230\uFF1A\u7D05\u65B9";updateInformation(turnMsg)}}}if(myRole==="b"&&state.players.b!==myId||myRole==="r"&&state.players.r!==myId){updateInformation("\u7CFB\u7D71\u5DF2\u5C07\u60A8\u79FB\u51FA\u5C0D\u6230\u5EA7\u4F4D\uFF01");myRole="spectator";sessionStorage.removeItem("xq_role_selected_"+room);hasSelectedRoleLocal=null;updateRoleBadge();return}if(isAiMode&&state.players[aiRole]!==null&&state.players[aiRole]!==AI_ID){isAiMode=!0x1;sessionStorage.removeItem("xq_ai_mode_"+room);updateRoleBadge()}if(isAiMode&&myRole!=="spectator"){let currentBoardStr=JSON.stringify(state.board);if(state.turn===aiRole&&(state.status==="playing"||state.status==="check")&&!isAiThinking){currentBoardStr!==lastSurrenderedBoard?(isAiThinking=!0x0,setTimeout(makeAIMove,0x32)):updateInformation("\u5C0D\u5C40\u7D50\u675F\uFF1A\u96FB\u8166\u7121\u68CB\u53EF\u8D70")}if(state.restartRequest===myRole){apiCall("restart",{playerId:AI_ID,restartAction:"agree"})}if(state.undoRequest===myRole){apiCall("undo",{playerId:AI_ID,undoAction:"agree"})}}let modal=document.getElementById("role-modal");if(modal.style.display==="flex"){let btnB=document.getElementById("btn-role-b"),btnR=document.getElementById("btn-role-r");state.players.b&&state.players.b!==myId?(btnB.disabled=!0x0,btnB.textContent="(\u5DF2\u88AB\u9078)"):(btnB.disabled=!0x1,btnB.textContent="\u57F7\u9ED1\u68CB");state.players.r&&state.players.r!==myId?(btnR.disabled=!0x0,btnR.textContent="(\u5DF2\u88AB\u9078)"):(btnR.disabled=!0x1,btnR.textContent="\u57F7\u7D05\u68CB");let bPlayer=state.players.b?String(state.players.b):"",rPlayer=state.players.r?String(state.players.r):"",isOtherHumanPlaying=bPlayer!==""&&bPlayer!==myId&&!bPlayer.startsWith("BOT_")||rPlayer!==""&&rPlayer!==myId&&!rPlayer.startsWith("BOT_"),aiMenuSection=document.getElementById("ai-menu-section");if(aiMenuSection){isOtherHumanPlaying?aiMenuSection.style.display="none":aiMenuSection.style.display="block"}}let restartBtn=document.getElementById("restart-btn"),rejectBtn=document.getElementById("reject-btn"),undoBtn=document.getElementById("undo-btn"),rejectUndoBtn=document.getElementById("reject-undo-btn"),replayBtn=document.getElementById("btn-replay"),stopReplayBtn=document.getElementById("btn-replay-stop"),reqAlert=document.getElementById("req-alert"),canUndo=state.history&&state.history.length>0x0;myRole==="b"||myRole==="r"?(restartBtn.style.display="inline-block",state.restartRequest===myRole?(restartBtn.textContent="\u274C \u7B49\u5F85...",restartBtn.style.backgroundColor="#9e9e9e",restartBtn.onclick=()=>{return requestRestart("cancel")},rejectBtn.style.display="none"):state.restartRequest&&state.restartRequest!==myRole?(restartBtn.textContent="\u2705 \u540C\u610F\u91CD\u958B",restartBtn.style.backgroundColor="#E91E63",restartBtn.onclick=()=>{return requestRestart("agree")},rejectBtn.style.display="inline-block"):(restartBtn.textContent="\uD83C\uDD95 \u91CD\u958B",restartBtn.style.backgroundColor="#4CAF50",restartBtn.onclick=()=>{return requestRestart("request")},rejectBtn.style.display="none"),state.undoRequest===myRole?(undoBtn.style.display="inline-block",undoBtn.textContent="\u274C \u7B49\u5F85...",undoBtn.style.backgroundColor="#9e9e9e",undoBtn.onclick=()=>{return requestUndo("cancel")},rejectUndoBtn.style.display="none"):state.undoRequest&&state.undoRequest!==myRole?(undoBtn.style.display="inline-block",undoBtn.textContent="\u2705 \u540C\u610F\u6094\u68CB",undoBtn.style.backgroundColor="#E91E63",undoBtn.onclick=()=>{return requestUndo("agree")},rejectUndoBtn.style.display="inline-block"):(undoBtn.style.display=canUndo?"inline-block":"none",undoBtn.textContent="\u21A9 \u6094\u68CB",undoBtn.style.backgroundColor="#ff9800",undoBtn.onclick=()=>{return requestUndo("request")},rejectUndoBtn.style.display="none")):(restartBtn.style.display="none",rejectBtn.style.display="none",undoBtn.style.display="none",rejectUndoBtn.style.display="none");if(myRole==="spectator"&&canUndo){if(!isReplaying){replayBtn.style.display="inline-block"}}else{replayBtn.style.display="none";if(stopReplayBtn){stopReplayBtn.style.display="none"}if(isReplaying){stopReplay()}}let reqMsg="";if(state.restartRequest&&state.restartRequest!==myRole&&myRole!=="spectator"){reqMsg="\u5C0D\u65B9\u8ACB\u6C42\u91CD\u65B0\u958B\u5C40\uFF01"}else{if(state.restartRequest&&myRole==="spectator"){reqMsg=(state.restartRequest==="b"?"\u9ED1\u65B9":"\u7D05\u65B9")+" \u767C\u8D77\u4E86\u91CD\u958B\u8ACB\u6C42..."}else{if(state.undoRequest&&state.undoRequest!==myRole&&myRole!=="spectator"){reqMsg="\u5C0D\u65B9\u8ACB\u6C42\u6094\u68CB\uFF01"}else{if(state.undoRequest&&myRole==="spectator"){reqMsg=(state.undoRequest==="b"?"\u9ED1\u65B9":"\u7D05\u65B9")+" \u767C\u8D77\u4E86\u6094\u68CB\u8ACB\u6C42..."}}}}reqMsg?(reqAlert.style.display="block",reqAlert.textContent=reqMsg):reqAlert.style.display="none";let checkMsg=document.getElementById("check-msg");state.status==="check"?(checkMsg.style.display="block",checkMsg.textContent=state.checkMsg+" \u5C07\u8ECD\uFF01"):checkMsg.style.display="none";if(!isReplaying){renderBoard()}}function renderBoard(){const grid=document.getElementById("board-grid");grid.innerHTML="";let isFlipped=myRole==="b";for(let displayR=0x0;displayR<0xa;displayR++)for(let displayC=0x0;displayC<0x9;displayC++){let r=isFlipped?0x9-displayR:displayR,c=isFlipped?0x8-displayC:displayC,cellDiv=document.createElement("div");cellDiv.className="cell";cellDiv.dataset.r=r;cellDiv.dataset.c=c;cellDiv.onclick=()=>{return handleCellClick(r,c)};if(gameState.lastMove&&gameState.lastMove.r1===r&&gameState.lastMove.c1===c){cellDiv.classList.add("last-move-origin")}let p=gameState.board[r][c];if(p){let pieceDiv=document.createElement("div");pieceDiv.className="piece "+(p===p.toLowerCase()?"black":"red");if(selectedCell&&selectedCell.r===r&&selectedCell.c===c){pieceDiv.classList.add("selected")}if(gameState.lastMove&&gameState.lastMove.r2===r&&gameState.lastMove.c2===c){pieceDiv.classList.add("last-moved")}pieceDiv.textContent=piecesText[p];cellDiv.appendChild(pieceDiv)}if(selectedCell&&isMoveLegal(gameState.board,selectedCell.r,selectedCell.c,r,c)){if(!leavesKingInCheck(gameState.board,selectedCell.r,selectedCell.c,r,c,gameState.turn)){cellDiv.classList.add("valid-move")}}grid.appendChild(cellDiv)}}function getInitialBoardLocal(){return[["r","h","e","a","k","a","e","h","r"],["","","","","","","","",""],["","c","","","","","","c",""],["p","","p","","p","","p","","p"],["","","","","","","","",""],["","","","","","","","",""],["P","","P","","P","","P","","P"],["","C","","","","","","C",""],["","","","","","","","",""],["R","H","E","A","K","A","E","H","R"]]}function startReplay(){if(!gameState||!gameState.history||gameState.history.length===0x0){updateInformation("\u6C92\u6709\u6B77\u53F2\u7D00\u9304\u53EF\u4EE5\u8986\u76E4\uFF01");return}if(isReplaying){return}isReplaying=!0x0;isReplayPaused=!0x1;replayStep=0x0;replaySteps=gameState.history;gameState.initialBoard?(console.log("getinitialBoard",gameState.initialBoard),replayBoard=JSON.parse(JSON.stringify(gameState.initialBoard))):replayBoard=getInitialBoardLocal();let replayBtn=document.getElementById("btn-replay");replayBtn.style.backgroundColor="#FF9800";replayBtn.textContent="\u23F8\uFE0F \u66AB\u505C";replayBtn.onclick=toggleReplayPlayPause;let stopBtn=document.getElementById("btn-replay-stop");stopBtn.style.display="inline-block";updateInformation("\u958B\u59CB\u8986\u76E4...");renderCustomBoard(replayBoard,null);runReplayInterval()}function toggleReplayPlayPause(){let replayBtn=document.getElementById("btn-replay");isReplayPaused?(isReplayPaused=!0x1,replayBtn.style.backgroundColor="#FF9800",replayBtn.textContent="\u23F8\uFE0F \u66AB\u505C",updateInformation("\u7E7C\u7E8C\u8986\u76E4..."),runReplayInterval()):(isReplayPaused=!0x0,clearInterval(replayInterval),replayBtn.style.backgroundColor="#4CAF50",replayBtn.textContent="\u25B6\uFE0F \u7E7C\u7E8C",updateInformation("\u8986\u76E4\u5DF2\u66AB\u505C\u3002"))}function runReplayInterval(){clearInterval(replayInterval);replayInterval=setInterval(()=>{if(replayStep>=replaySteps.length){clearInterval(replayInterval);isReplayPaused=!0x0;document.getElementById("btn-replay").style.display="none";updateInformation("\u8986\u76E4\u7D50\u675F\uFF0C\u8ACB\u6309\u300C\u7D50\u675F\u300D\u8FD4\u56DE\u5373\u6642\u6230\u6CC1\u3002");return}let move=replaySteps[replayStep],p=replayBoard[move.r1][move.c1];replayBoard[move.r2][move.c2]=p;replayBoard[move.r1][move.c1]="";let notation=getMoveNotation(p,move.r1,move.c1,move.r2,move.c2);updateInformation("\u8986\u76E4 ["+(replayStep+0x1)+"/"+replaySteps.length+"]: "+notation);renderCustomBoard(replayBoard,move);replayStep++},0xbb8)}function stopReplay(){if(!isReplaying){return}isReplaying=!0x1;isReplayPaused=!0x1;clearInterval(replayInterval);let replayBtn=document.getElementById("btn-replay");replayBtn.style.backgroundColor="#9C27B0";replayBtn.textContent="\u25B6\uFE0F \u8986\u76E4";replayBtn.onclick=startReplay;let stopBtn=document.getElementById("btn-replay-stop");stopBtn.style.display="none";updateInformation("\u5DF2\u7D50\u675F\u8986\u76E4\uFF0C\u8FD4\u56DE\u5373\u6642\u76E4\u9762\u3002");updateUI(gameState)}function renderCustomBoard(customBoard,lastMoveMarker){const grid=document.getElementById("board-grid");grid.innerHTML="";let isFlipped=myRole==="b";for(let displayR=0x0;displayR<0xa;displayR++)for(let displayC=0x0;displayC<0x9;displayC++){let r=isFlipped?0x9-displayR:displayR,c=isFlipped?0x8-displayC:displayC,cellDiv=document.createElement("div");cellDiv.className="cell";if(lastMoveMarker&&lastMoveMarker.r1===r&&lastMoveMarker.c1===c){cellDiv.classList.add("last-move-origin")}let p=customBoard[r][c];if(p){let pieceDiv=document.createElement("div");pieceDiv.className="piece "+(p===p.toLowerCase()?"black":"red");if(lastMoveMarker&&lastMoveMarker.r2===r&&lastMoveMarker.c2===c){pieceDiv.classList.add("last-moved")}pieceDiv.textContent=piecesText[p];cellDiv.appendChild(pieceDiv)}grid.appendChild(cellDiv)}}function handleCellClick(r,c){if(myRole==="spectator"||gameState.turn!==myRole||isAiThinking){return}let clickedPiece=gameState.board[r][c],isMyPiece=clickedPiece&&(myRole==="b"?clickedPiece===clickedPiece.toLowerCase():clickedPiece===clickedPiece.toUpperCase());if(selectedCell){if(selectedCell.r===r&&selectedCell.c===c){selectedCell=null}else{if(isMyPiece){selectedCell={r:r,c:c}}else{if(isMoveLegal(gameState.board,selectedCell.r,selectedCell.c,r,c)){!leavesKingInCheck(gameState.board,selectedCell.r,selectedCell.c,r,c,myRole)?commitMove(selectedCell.r,selectedCell.c,r,c):updateInformation("\u4E0D\u80FD\u9001\u5C07\uFF01")}}}}else{if(isMyPiece){selectedCell={r:r,c:c}}}renderBoard()}let syncQueue=[],isProcessingQueue=!0x1;async function processSyncQueue(){if(isProcessingQueue){return}isProcessingQueue=!0x0;isSyncing=!0x0;while(syncQueue.length>0x0){let stateToSync=syncQueue[syncQueue.length-0x1];syncQueue=[];try{await apiCall("move",{state:stateToSync})}catch(e){}}isProcessingQueue=!0x1;isSyncing=!0x1}function commitMove(r1,c1,r2,c2){lastActionTime=Date.now();let nextState=JSON.parse(JSON.stringify(gameState));if(!nextState.history){nextState.history=[]}nextState.history.push({r1:r1,c1:c1,r2:r2,c2:c2,eaten:nextState.board[r2][c2],oldTurn:gameState.turn,oldStatus:gameState.status,oldCheckMsg:gameState.checkMsg,oldLastMove:gameState.lastMove?Object.assign({},gameState.lastMove):null});if(nextState.history.length>0x1f4){nextState.history.shift()}nextState.board[r2][c2]=nextState.board[r1][c1];nextState.board[r1][c1]="";let nextTurn=gameState.turn==="b"?"r":"b",checkAlert="",status="playing";if(isKingAttacked(nextState.board,nextTurn)){status="check";checkAlert=nextTurn==="b"?"\u9ED1\u65B9":"\u7D05\u65B9"}nextState.turn=nextTurn;nextState.status=status;nextState.checkMsg=checkAlert;nextState.restartRequest=null;nextState.undoRequest=null;nextState.lastMove={r1:r1,c1:c1,r2:r2,c2:c2};selectedCell=null;updateUI(nextState);syncQueue.push(gameState);processSyncQueue()}const PIECE_VALUES={k:0x186a0,r:0x3e8,c:0x226,h:0x1f4,e:0xfa,a:0xfa,p:0x64,K:0x186a0,R:0x3e8,C:0x226,H:0x1f4,E:0xfa,A:0xfa,P:0x64};function evaluateBoard(board,aiColor){let score=0x0;for(let r=0x0;r<0xa;r++)for(let c=0x0;c<0x9;c++){let p=board[r][c];if(p){let isBlack=p===p.toLowerCase(),forwardR=isBlack?r:0x9-r,absC=Math.abs(c-0x4),val=PIECE_VALUES[p],pType=p.toLowerCase();if(pType==="p"){forwardR>0x4?val+=0x50+forwardR*0xf+(0x4-absC)*0xf:val+=forwardR*0x5}else{if(pType==="h"){val+=(0x4-absC)*0xc+forwardR*0x8;if(c===0x0||c===0x8){val-=0x28}if(forwardR===0x9){val-=0x1e}}else{if(pType==="c"){val+=(0x4-absC)*0x8;if(forwardR>0x4){val+=0x14}if(forwardR===0x0){val+=0xf}}else{if(pType==="r"){if(forwardR>0x0){val+=0x19}if(c===0x4){val+=0x14}if(forwardR===0x8||forwardR===0x9){val+=0x1e}let openFile=!0x0;for(let scanR=0x0;scanR<0xa;scanR++)if(board[scanR][c]&&board[scanR][c].toLowerCase()==="p"){openFile=!0x1}if(openFile){val+=0x1e}}}}}getColor(p)===aiColor?score+=val:score-=val}}let aiOppColor=aiColor==="b"?"r":"b";if(isKingAttacked(board,aiColor)){score-=0x96}if(isKingAttacked(board,aiOppColor)){score+=0x96}return score}function getAllLegalMovesList(board,color){let moves=[];for(let r=0x0;r<0xa;r++)for(let c=0x0;c<0x9;c++)if(getColor(board[r][c])===color){for(let tr=0x0;tr<0xa;tr++)for(let tc=0x0;tc<0x9;tc++)if(isMoveLegal(board,r,c,tr,tc)&&!leavesKingInCheck(board,r,c,tr,tc,color)){let p=board[r][c],target=board[tr][tc],moveScore=0x0;target!==""?moveScore=PIECE_VALUES[target]*0xa-PIECE_VALUES[p]:moveScore=(color==="b"?tr-r:r-tr)+(0x4-Math.abs(tc-0x4));moves.push({r1:r,c1:c,r2:tr,c2:tc,score:moveScore})}}moves.sort((a,b)=>{return b.score-a.score});return moves}function quiesce(board,alpha,beta,isMaximizing,aiColor,qDepth){let currentColor=isMaximizing?aiColor:aiColor==="b"?"r":"b",inCheck=isKingAttacked(board,currentColor),stand_pat=evaluateBoard(board,aiColor);if(!inCheck){if(isMaximizing){if(stand_pat>=beta){return beta}alpha=Math.max(alpha,stand_pat)}else{if(stand_pat<=alpha){return alpha}beta=Math.min(beta,stand_pat)}}if(qDepth>0x3){return stand_pat}let moves=getAllLegalMovesList(board,currentColor);if(inCheck&&moves.length===0x0){return isMaximizing?-0x1869f-qDepth:0x1869f+qDepth}if(!inCheck){moves=moves.filter(m=>{return board[m.r2][m.c2]!==""})}let bestScore=stand_pat;if(inCheck){bestScore=isMaximizing?-(0x1/0x0):0x1/0x0}for(let move of moves){let p=board[move.r1][move.c1],target=board[move.r2][move.c2];board[move.r2][move.c2]=p;board[move.r1][move.c1]="";let score=quiesce(board,alpha,beta,!isMaximizing,aiColor,qDepth+0x1);board[move.r1][move.c1]=p;board[move.r2][move.c2]=target;if(isMaximizing){bestScore=Math.max(bestScore,score);alpha=Math.max(alpha,score);if(beta<=alpha){break}}else{bestScore=Math.min(bestScore,score);beta=Math.min(beta,score);if(beta<=alpha){break}}}return bestScore}function minimax(board,depth,alpha,beta,isMaximizing,aiColor){if(depth===0x0){return quiesce(board,alpha,beta,isMaximizing,aiColor,0x0)}let currentColor=isMaximizing?aiColor:aiColor==="b"?"r":"b",moves=getAllLegalMovesList(board,currentColor);if(moves.length===0x0){return isMaximizing?-0x1869f-depth:0x1869f+depth}if(isMaximizing){let maxEval=-(0x1/0x0);for(let move of moves){let p=board[move.r1][move.c1],target=board[move.r2][move.c2];board[move.r2][move.c2]=p;board[move.r1][move.c1]="";let ev=minimax(board,depth-0x1,alpha,beta,!0x1,aiColor);board[move.r1][move.c1]=p;board[move.r2][move.c2]=target;maxEval=Math.max(maxEval,ev);alpha=Math.max(alpha,ev);if(beta<=alpha){break}}return maxEval}else{let minEval=0x1/0x0;for(let move of moves){let p=board[move.r1][move.c1],target=board[move.r2][move.c2];board[move.r2][move.c2]=p;board[move.r1][move.c1]="";let ev=minimax(board,depth-0x1,alpha,beta,!0x0,aiColor);board[move.r1][move.c1]=p;board[move.r2][move.c2]=target;minEval=Math.min(minEval,ev);beta=Math.min(beta,ev);if(beta<=alpha){break}}return minEval}}async function makeAIMove(){try{await new Promise(r=>{return setTimeout(r,0x64)});if(!isAiMode||gameState.turn!==aiRole||gameState.status!=="playing"&&gameState.status!=="check"){return}let aiLevel=sessionStorage.getItem("xq_ai_level_"+room)||"easy",validMoves=getAllLegalMovesList(gameState.board,aiRole);if(validMoves.length===0x0){let currentBoardStr=JSON.stringify(gameState.board);if(lastSurrenderedBoard!==currentBoardStr){lastSurrenderedBoard=currentBoardStr;updateInformation("\u5C0D\u5C40\u7D50\u675F\uFF1A\u96FB\u8166\u7121\u68CB\u53EF\u8D70")}return}let totalPieces=0x0;for(let r=0x0;r<0xa;r++)for(let c=0x0;c<0x9;c++)if(gameState.board[r][c]!==""){totalPieces++}let isCurrentlyInCheck=isKingAttacked(gameState.board,aiRole),turnCount=gameState.history?gameState.history.length:0x0;if(turnCount<=0x4&&!isCurrentlyInCheck&&totalPieces>=0x1e){let openings=[];aiRole==="b"?openings=[{r1:0x2,c1:0x1,r2:0x2,c2:0x4},{r1:0x2,c1:0x7,r2:0x2,c2:0x4},{r1:0x0,c1:0x1,r2:0x2,c2:0x2},{r1:0x0,c1:0x7,r2:0x2,c2:0x6},{r1:0x0,c1:0x2,r2:0x2,c2:0x4},{r1:0x0,c1:0x6,r2:0x2,c2:0x4},{r1:0x3,c1:0x2,r2:0x4,c2:0x2},{r1:0x3,c1:0x6,r2:0x4,c2:0x6}]:openings=[{r1:0x7,c1:0x1,r2:0x7,c2:0x4},{r1:0x7,c1:0x7,r2:0x7,c2:0x4},{r1:0x9,c1:0x1,r2:0x7,c2:0x2},{r1:0x9,c1:0x7,r2:0x7,c2:0x6},{r1:0x9,c1:0x2,r2:0x7,c2:0x4},{r1:0x9,c1:0x6,r2:0x7,c2:0x4},{r1:0x6,c1:0x2,r2:0x5,c2:0x2},{r1:0x6,c1:0x6,r2:0x5,c2:0x6}];let legalOpenings=openings.filter(m=>{return getColor(gameState.board[m.r1][m.c1])===aiRole&&isMoveLegal(gameState.board,m.r1,m.c1,m.r2,m.c2)&&!leavesKingInCheck(gameState.board,m.r1,m.c1,m.r2,m.c2,aiRole)});if(legalOpenings.length>0x0){let bestMove=legalOpenings[Math.floor(Math.random()*legalOpenings.length)];commitMove(bestMove.r1,bestMove.c1,bestMove.r2,bestMove.c2);return}}let bestVal=-(0x1/0x0),searchDepth=0x2;if(aiLevel==="hard"){searchDepth=totalPieces<=0x10?0x5:0x4}let candidateMoves=[],lastMyMove=null;if(gameState.history){for(let i=gameState.history.length-0x1;i>=0x0;i--)if(gameState.history[i].oldTurn===aiRole){lastMyMove=gameState.history[i];break}}for(let move of validMoves){let p=gameState.board[move.r1][move.c1],target=gameState.board[move.r2][move.c2];gameState.board[move.r2][move.c2]=p;gameState.board[move.r1][move.c1]="";let moveVal=minimax(gameState.board,searchDepth-0x1,-(0x1/0x0),0x1/0x0,!0x1,aiRole);gameState.board[move.r1][move.c1]=p;gameState.board[move.r2][move.c2]=target;if(lastMyMove&&move.r1===lastMyMove.r2&&move.c1===lastMyMove.c2&&move.r2===lastMyMove.r1&&move.c2===lastMyMove.c1){moveVal-=0xc350}aiLevel==="easy"?moveVal+=Math.random()*0x64-0x32:moveVal+=Math.random()*0x2;if(moveVal>bestVal){bestVal=moveVal;candidateMoves=[move]}else{if(moveVal===bestVal){candidateMoves.push(move)}}await new Promise(r=>{return setTimeout(r,0x0)})}let bestMove=candidateMoves[Math.floor(Math.random()*candidateMoves.length)];commitMove(bestMove.r1,bestMove.c1,bestMove.r2,bestMove.c2)}finally{isAiThinking=!0x1}}Update_GAS();function getColor(p){return p===""?"":p===p.toLowerCase()?"b":"r"}function isMoveLegal(board,r1,c1,r2,c2){let p=board[r1][c1],target=board[r2][c2];if(p===""){return!0x1}if(target!==""&&getColor(p)===getColor(target)){return!0x1}let dr=r2-r1,dc=c2-c1,adr=Math.abs(dr),adc=Math.abs(dc),pType=p.toLowerCase(),color=getColor(p);switch(pType){case"p":return color==="b"?dr===0x1&&dc===0x0||r1>=0x5&&dr===0x0&&adc===0x1:dr===-0x1&&dc===0x0||r1<=0x4&&dr===0x0&&adc===0x1;case"r":if(adr>0x0&&adc>0x0){return!0x1}return countPiecesBetween(board,r1,c1,r2,c2)===0x0;case"h":if(adr===0x2&&adc===0x1){return board[r1+dr/0x2][c1]===""}if(adr===0x1&&adc===0x2){return board[r1][c1+dc/0x2]===""}return!0x1;case"e":if(adr!==0x2||adc!==0x2){return!0x1}if(color==="b"&&r2>0x4){return!0x1}if(color==="r"&&r2<0x5){return!0x1}return board[r1+dr/0x2][c1+dc/0x2]==="";case"a":if(adr!==0x1||adc!==0x1){return!0x1}if(c2<0x3||c2>0x5){return!0x1}if(color==="b"&&r2>0x2){return!0x1}if(color==="r"&&r2<0x7){return!0x1}return!0x0;case"k":if(adr+adc!==0x1){return!0x1}if(c2<0x3||c2>0x5){return!0x1}if(color==="b"&&r2>0x2){return!0x1}if(color==="r"&&r2<0x7){return!0x1}return!0x0;case"c":if(adr>0x0&&adc>0x0){return!0x1}let between=countPiecesBetween(board,r1,c1,r2,c2);return target===""?between===0x0:between===0x1}return!0x1}function countPiecesBetween(board,r1,c1,r2,c2){let count=0x0;if(r1===r2){let minC=Math.min(c1,c2),maxC=Math.max(c1,c2);for(let c=minC+0x1;c<maxC;c++)if(board[r1][c]!==""){count++}}else{let minR=Math.min(r1,r2),maxR=Math.max(r1,r2);for(let r=minR+0x1;r<maxR;r++)if(board[r][c1]!==""){count++}}return count}function isKingAttacked(board,kingColor){let kr=-0x1,kc=-0x1,targetKing=kingColor==="b"?"k":"K";for(let r=0x0;r<0xa;r++){for(let c=0x0;c<0x9;c++)if(board[r][c]===targetKing){kr=r;kc=c;break}if(kr!==-0x1){break}}if(kr===-0x1){return!0x0}let oppColor=kingColor==="b"?"r":"b";for(let r=0x0;r<0xa;r++)for(let c=0x0;c<0x9;c++)if(getColor(board[r][c])===oppColor){if(isMoveLegal(board,r,c,kr,kc)){return!0x0}}return!0x1}function leavesKingInCheck(board,r1,c1,r2,c2,color){let p=board[r1][c1],target=board[r2][c2];board[r2][c2]=p;board[r1][c1]="";let inCheck=isKingAttacked(board,color),bkR=-0x1,bkC=-0x1,rkR=-0x1,rkC=-0x1;if(!inCheck){for(let r=0x0;r<0xa;r++)for(let c=0x0;c<0x9;c++){if(board[r][c]==="k"){bkR=r;bkC=c}if(board[r][c]==="K"){rkR=r;rkC=c}}if(bkC===rkC&&bkC!==-0x1){if(countPiecesBetween(board,bkR,bkC,rkR,rkC)===0x0){inCheck=!0x0}}}board[r1][c1]=p;board[r2][c2]=target;return inCheck}window.onload=init;window.closeRoleModal=closeRoleModal;window.requestRole=requestRole;window.startAiGame=startAiGame;window.showRoleModal=showRoleModal;window.startReplay=startReplay;window.stopReplay=stopReplay;window.requestRestart=requestRestart;window.requestUndo=requestUndo;
+
+    if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(e=>{}); }); }
+
+
+    let room = '榕樹下';
+    const queryString = window.location.search.substring(1);
+    if (queryString) {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('room')) { room = decodeURIComponent(urlParams.get('room')); } 
+      else { room = decodeURIComponent(queryString.split('&')[0].split('=')[0]); }
+    }
+    document.getElementById('room-title').textContent = "" + room;
+    document.getElementById('modal-room-name').textContent = room;
+
+    let myId = sessionStorage.getItem('xq_id');
+    if (!myId) { myId = Math.random().toString(36).substr(2, 9); sessionStorage.setItem('xq_id', myId); }
+    
+    const AI_ID = "BOT_" + myId;
+    let isAiMode = false; let aiRole = null; let isAiThinking = false; let lastSurrenderedBoard = null; 
+
+    let hasSelectedRoleLocal = sessionStorage.getItem('xq_role_selected_' + room);
+    let gameState = null; let myRole = null; let selectedCell = null; 
+    let isSyncing = false; 
+    let lastActionTime = Date.now(); 
+
+    // ==========================================
+    // 🌟 覆盤系統 (Review System) 變數
+    // ==========================================
+    let isReplaying = false;
+    let isReplayPaused = false;
+    let replayInterval = null;
+    let replayStep = 0;
+    let replaySteps = [];
+    let replayBoard = null;
+
+    const piecesText = { 'k':'將', 'a':'士', 'e':'象', 'h':'馬', 'r':'車', 'c':'砲', 'p':'卒', 'K':'帥', 'A':'仕', 'E':'相', 'H':'傌', 'R':'俥', 'C':'炮', 'P':'兵' };
+
+    function getMoveNotation(p, r1, c1, r2, c2) {
+      if (!p) return ""; 
+      let color = (p === p.toLowerCase()) ? 'b' : 'r';
+      let colorStr = color === 'b' ? '黑' : '紅';
+      let pName = piecesText[p];
+      let startCol = color === 'r' ? (9 - c1) : (c1 + 1);
+      
+      let dir = '';
+      if (r1 === r2) dir = '平';
+      else if (color === 'r') dir = r2 < r1 ? '進' : '退';
+      else dir = r2 > r1 ? '進' : '退';
+      
+      let endVal = '';
+      let pType = p.toLowerCase();
+      if (dir === '平') endVal = color === 'r' ? (9 - c2) : (c2 + 1);
+      else {
+        if (['r', 'c', 'p', 'k'].includes(pType)) endVal = Math.abs(r1 - r2); 
+        else endVal = color === 'r' ? (9 - c2) : (c2 + 1); 
+      }
+      return `${colorStr}${pName}${startCol}${dir}${endVal}`;
+    }
+
+    function showRoleModal() { document.getElementById('role-modal').style.display = 'flex'; document.getElementById('close-modal-btn').style.display = 'block'; if (gameState) updateUI(gameState); }
+    function closeRoleModal() { document.getElementById('role-modal').style.display = 'none'; }
+
+    let infoHistory = []; let lastText = "";
+    function updateInformation(text) {
+      if (text !== lastText) {
+        infoHistory.unshift(text); 
+        if (infoHistory.length > 100) infoHistory.pop(); 
+        document.getElementById('info').innerHTML = infoHistory.join('<br>');
+        lastText = text;
+      }
+    }
+
+    function drawSVGBoard() {
+      let getX = c => (c + 0.5) * (100 / 9) + '%'; let getY = r => (r + 0.5) * (100 / 10) + '%';
+      let svg = `<svg width="100%" height="100%" overflow="visible">`; const stroke = `stroke="#333" stroke-width="1.5"`;
+      for (let c = 0; c < 9; c++) {
+        if (c === 0 || c === 8) { svg += `<line x1="${getX(c)}" y1="${getY(0)}" x2="${getX(c)}" y2="${getY(9)}" ${stroke} />`; } 
+        else { svg += `<line x1="${getX(c)}" y1="${getY(0)}" x2="${getX(c)}" y2="${getY(4)}" ${stroke} />`; svg += `<line x1="${getX(c)}" y1="${getY(5)}" x2="${getX(c)}" y2="${getY(9)}" ${stroke} />`; }
+      }
+      for (let r = 0; r < 10; r++) { svg += `<line x1="${getX(0)}" y1="${getY(r)}" x2="${getX(8)}" y2="${getY(r)}" ${stroke} />`; }
+      svg += `<line x1="${getX(3)}" y1="${getY(0)}" x2="${getX(5)}" y2="${getY(2)}" ${stroke} />`; svg += `<line x1="${getX(5)}" y1="${getY(0)}" x2="${getX(3)}" y2="${getY(2)}" ${stroke} />`;
+      svg += `<line x1="${getX(3)}" y1="${getY(7)}" x2="${getX(5)}" y2="${getY(9)}" ${stroke} />`; svg += `<line x1="${getX(5)}" y1="${getY(7)}" x2="${getX(3)}" y2="${getY(9)}" ${stroke} />`;
+      svg += `<text x="27.7%" y="50.5%" font-size="clamp(18px, 5vw, 26px)" font-weight="bold" fill="#333" text-anchor="middle" dominant-baseline="central">楚</text>`;
+      svg += `<text x="38.8%" y="50.5%" font-size="clamp(18px, 5vw, 26px)" font-weight="bold" fill="#333" text-anchor="middle" dominant-baseline="central">河</text>`;
+      svg += `<text x="61.1%" y="50.5%" font-size="clamp(18px, 5vw, 26px)" font-weight="bold" fill="#333" text-anchor="middle" dominant-baseline="central">漢</text>`;
+      svg += `<text x="72.2%" y="50.5%" font-size="clamp(18px, 5vw, 26px)" font-weight="bold" fill="#333" text-anchor="middle" dominant-baseline="central">界</text>`;
+
+      for (let c = 0; c < 9; c++) {
+        let topNum = c + 1; let bottomNum = 9 - c;
+        svg += `<text x="${getX(c)}" y="-3%" font-size="clamp(12px, 2.5vw, 15px)" font-weight="bold" fill="#555" text-anchor="middle" dominant-baseline="central">${topNum}</text>`;
+        svg += `<text x="${getX(c)}" y="103%" font-size="clamp(12px, 2.5vw, 15px)" font-weight="bold" fill="#555" text-anchor="middle" dominant-baseline="central">${bottomNum}</text>`;
+      }
+      svg += `</svg>`; document.getElementById('board-svg-layer').innerHTML = svg;
+    } drawSVGBoard();
+
+
+    async function init() { 
+      let storedAiRole = sessionStorage.getItem('xq_ai_mode_' + room);
+      if (storedAiRole) { isAiMode = true; aiRole = storedAiRole; }
+      let data = await updateChess('join', { playerId: myId }); 
+      if (data) onJoined(data); 
+      setInterval(pollState, 1500);   
+    }
+
+
+    // 🌟 若在覆盤中，背景會偷偷更新狀態但不干擾畫面
+    async function pollState() { 
+      if (isSyncing) return; 
+      let fetchActionTime = lastActionTime; 
+      let data = await updateChess('get'); 
+      if (isSyncing || fetchActionTime !== lastActionTime) return; 
+      if (data && data.state) {
+        if (isReplaying) {
+           gameState = data.state; 
+        } else {
+           updateUI(data.state); 
+        }
+      }
+    }
+
+    async function requestRole(role) {
+      document.getElementById('role-modal').style.display = 'none';
+      isSyncing = true; 
+      if (isAiMode) { updateInformation("正在清理電腦玩家..."); await updateChess('closeThisRoomForNewBeginner', { targetRoom: room }); }
+      isAiMode = false; sessionStorage.removeItem('xq_ai_mode_' + room); 
+      
+      let data = await updateChess('takeRole', { playerId: myId, role: role });
+      if (data && data.success) {
+        myRole = data.role; sessionStorage.setItem('xq_role_selected_' + room, 'true'); hasSelectedRoleLocal = 'true'; updateRoleBadge(); 
+        updateInformation(`成功切換身分：${role === 'b' ? '黑方' : (role === 'r' ? '紅方' : '觀戰者')}`);
+        updateUI(data.state);
+      } else { 
+        updateInformation("選擇失敗，該座位可能已被搶先！"); 
+        if (data && data.state) { updateUI(data.state); showRoleModal(); } 
+      }
+      isSyncing = false; lastActionTime = Date.now(); 
+    }
+
+    async function startAiGame(humanRole, difficulty) {
+      document.getElementById('role-modal').style.display = 'none';
+      updateInformation(`正在準備單機模式 (${difficulty === 'hard' ? '高級' : '簡單'})...`);
+      isSyncing = true; 
+      await updateChess('closeThisRoomForNewBeginner', { targetRoom: room });
+
+      let botRole = humanRole === 'r' ? 'b' : 'r';
+      isAiMode = true; aiRole = botRole;
+      sessionStorage.setItem('xq_ai_mode_' + room, botRole);
+      sessionStorage.setItem('xq_ai_level_' + room, difficulty); 
+      
+      let data = await updateChess('takeRole', { playerId: myId, role: humanRole });
+      if (data && data.success) {
+        myRole = data.role; sessionStorage.setItem('xq_role_selected_' + room, 'true'); hasSelectedRoleLocal = 'true'; updateRoleBadge(); 
+        let aiData = await updateChess('takeRole', { playerId: AI_ID, role: botRole });
+        if (aiData && aiData.state) updateUI(aiData.state); else updateUI(data.state);
+      }
+      isSyncing = false; lastActionTime = Date.now();
+    }
+
+    async function requestRestart(actionType) {
+      if (myRole === 'spectator') return;
+      if (actionType === 'request') { if (!confirm("向對方發送重新開局請求？")) return; updateInformation("已發出重新開局請求..."); } 
+      else if (actionType === 'agree') { if (!confirm("確定要同意重新開局嗎？棋盤將立即清空。")) return; updateInformation("已同意重新開局..."); } 
+      else if (actionType === 'reject') { updateInformation("已拒絕重新開局..."); } 
+      else if (actionType === 'cancel') { updateInformation("已取消重新開局請求..."); }
+      
+      isSyncing = true; lastActionTime = Date.now();
+      let data = await updateChess('restart', { playerId: myId, restartAction: actionType }); 
+      if (data && data.state) updateUI(data.state); 
+      isSyncing = false;
+    }
+
+    async function requestUndo(actionType) {
+      if (myRole === 'spectator') return;
+      if (actionType === 'request') {
+        if (!gameState || !gameState.history || gameState.history.length === 0) { updateInformation("目前沒有可以悔的棋！"); return; }
+        if (!confirm("向對方發送悔棋請求？")) return;
+        updateInformation("已發出悔棋請求...");
+      } else if (actionType === 'agree') {
+        if (!confirm("確定要同意對方悔棋嗎？")) return; updateInformation("已同意悔棋...");
+      } else if (actionType === 'reject') { updateInformation("已拒絕悔棋..."); } 
+      else if (actionType === 'cancel') { updateInformation("已取消悔棋請求..."); }
+      
+      isSyncing = true; lastActionTime = Date.now();
+      let data = await updateChess('undo', { playerId: myId, undoAction: actionType }); 
+      if (data && data.state) updateUI(data.state); 
+      isSyncing = false;
+    }
+
+    function onJoined(data) {
+      myRole = data.role || 'spectator'; 
+      updateUI(data.state);
+      if (myRole === 'b' || myRole === 'r') { hasSelectedRoleLocal = 'true'; sessionStorage.setItem('xq_role_selected_' + room, 'true'); } 
+      else { myRole = 'spectator'; }
+      updateRoleBadge();
+    }
+
+    function updateRoleBadge() {
+      let roleText = myRole === 'b' ? '黑方' : myRole === 'r' ? '紅方' : '觀戰者';
+      if (isAiMode) { let levelText = sessionStorage.getItem('xq_ai_level_' + room) === 'hard' ? '高級' : '簡單'; roleText += ` (單機-${levelText})`; }
+      let badge = document.getElementById('role-info'); badge.textContent = "你是：" + roleText; badge.className = "role-badge " + (myRole === 'spectator' ? '' : 'role-' + myRole);
+    }
+
+    let riClickCnt = 0;
+    let riTimer = null; // 用來儲存計時器
+
+    document.getElementById('role-info').onclick = function() {
+        // 1. 每點一次，就清除上一個計時器，重新開始計時
+        if (riTimer) {
+            clearTimeout(riTimer);
+        }
+
+        // 2. 增加點擊次數
+        riClickCnt++;
+
+        // 3. 判斷是否達成連點目標（例如連點 3 下）
+        if (riClickCnt === 3) {
+            riClickCnt = 0; // 成功後重置
+            const targetRoom = typeof room !== 'undefined' ? room : "";
+            window.location.href = "./lobby.html?" + targetRoom;
+        } else {
+            // 4. 如果還沒點滿，設定一個「限時」，例如 1000 毫秒 (1秒)
+            // 超過 1 秒沒點下一點，次數就會歸零
+            riTimer = setTimeout(() => {
+                console.log('連點中斷，次數重置');
+                riClickCnt = 0;
+            }, 3000); 
+        }
+    };
+
+    function updateUI(state) {
+      let oldState = gameState; let boardChanged = false;
+      
+      if (oldState) {
+        boardChanged = JSON.stringify(oldState.board) !== JSON.stringify(state.board);
+        if (boardChanged) selectedCell = null; 
+        
+        let isUndo = false; let isRestart = false;
+        let oldHistoryLen = oldState.history ? oldState.history.length : 0;
+        let newHistoryLen = state.history ? state.history.length : 0;
+
+        if (newHistoryLen === 0 && oldHistoryLen > 0) isRestart = true;
+        else if (newHistoryLen < oldHistoryLen) isUndo = true;
+
+        if (oldState.restartRequest !== state.restartRequest && state.restartRequest) {
+           if (state.restartRequest !== myRole) updateInformation(state.restartRequest === 'b' ? "黑方發起重新開局請求！" : "紅方發起重新開局請求！");
+        }
+        if (oldState.undoRequest !== state.undoRequest && state.undoRequest) {
+           if (state.undoRequest !== myRole) updateInformation(state.undoRequest === 'b' ? "黑方發起悔棋請求！" : "紅方發起悔棋請求！");
+        }
+        if (oldState.status !== state.status && state.status === 'check') updateInformation("將軍！");
+        
+        if (boardChanged) {
+            if (isRestart) updateInformation("🆕 已重新開局");
+            else if (isUndo) updateInformation("↩ 已悔棋");
+            else if (state.lastMove) {
+                let m = state.lastMove; let p = state.board[m.r2][m.c2];
+                if (p) { let notation = getMoveNotation(p, m.r1, m.c1, m.r2, m.c2); updateInformation(`${notation}`); }
+            }
+        }
+      }
+
+      gameState = state;
+      
+      if (!isAiThinking && document.getElementById('info').innerHTML.indexOf('電腦無棋可走') === -1) {
+        let bPlayer = state.players.b ? String(state.players.b) : ""; let rPlayer = state.players.r ? String(state.players.r) : "";
+        if (bPlayer === "" && rPlayer === "") updateInformation("沒有人在執棋");
+        else if (bPlayer === "" || rPlayer === "") updateInformation("等待對手加入...");
+        else { let turnMsg = state.turn === 'b' ? "輪到：黑方" : "輪到：紅方"; updateInformation(turnMsg); }
+      }
+
+      if ((myRole === 'b' && state.players.b !== myId) || (myRole === 'r' && state.players.r !== myId)) {
+        updateInformation("系統已將您移出對戰座位！"); myRole = 'spectator'; sessionStorage.removeItem('xq_role_selected_' + room); hasSelectedRoleLocal = null; updateRoleBadge(); return;
+      }
+
+      if (isAiMode && state.players[aiRole] !== null && state.players[aiRole] !== AI_ID) { isAiMode = false; sessionStorage.removeItem('xq_ai_mode_' + room); updateRoleBadge(); }
+
+      if (isAiMode && myRole !== 'spectator') {
+        let currentBoardStr = JSON.stringify(state.board);
+        if (state.turn === aiRole && (state.status === 'playing' || state.status === 'check') && !isAiThinking) {
+          if (currentBoardStr !== lastSurrenderedBoard) { isAiThinking = true; setTimeout(makeAIMove, 50); } 
+          else { updateInformation("對局結束：電腦無棋可走"); }
+        }
+        if (state.restartRequest === myRole) { updateChess('restart', { playerId: AI_ID, restartAction: 'agree' }); }
+        if (state.undoRequest === myRole) { updateChess('undo', { playerId: AI_ID, undoAction: 'agree' }); }
+      }
+
+      let modal = document.getElementById('role-modal');
+      if (modal.style.display === 'flex') {
+        let btnB = document.getElementById('btn-role-b'); let btnR = document.getElementById('btn-role-r');
+        if (state.players.b && state.players.b !== myId) { btnB.disabled = true; btnB.textContent = "(已被選)"; } else { btnB.disabled = false; btnB.textContent = "執黑棋"; }
+        if (state.players.r && state.players.r !== myId) { btnR.disabled = true; btnR.textContent = "(已被選)"; } else { btnR.disabled = false; btnR.textContent = "執紅棋"; }
+
+        let bPlayer = state.players.b ? String(state.players.b) : ""; let rPlayer = state.players.r ? String(state.players.r) : "";
+        let isOtherHumanPlaying = (bPlayer !== "" && bPlayer !== myId && !bPlayer.startsWith('BOT_')) || (rPlayer !== "" && rPlayer !== myId && !rPlayer.startsWith('BOT_'));
+        let aiMenuSection = document.getElementById('ai-menu-section');
+        if (aiMenuSection) { if (isOtherHumanPlaying) aiMenuSection.style.display = 'none'; else aiMenuSection.style.display = 'block'; }
+      }
+
+      let restartBtn = document.getElementById('restart-btn'); let rejectBtn = document.getElementById('reject-btn');
+      let undoBtn = document.getElementById('undo-btn'); let rejectUndoBtn = document.getElementById('reject-undo-btn');
+      
+      let replayBtn = document.getElementById('btn-replay'); 
+      let stopReplayBtn = document.getElementById('btn-replay-stop'); 
+      
+      let reqAlert = document.getElementById('req-alert');
+      let canUndo = (state.history && state.history.length > 0);
+
+      if (myRole === 'b' || myRole === 'r') { 
+        restartBtn.style.display = 'inline-block'; 
+        if (state.restartRequest === myRole) { restartBtn.textContent = "❌ 等待..."; restartBtn.style.backgroundColor = "#9e9e9e"; restartBtn.onclick = () => requestRestart('cancel'); rejectBtn.style.display = 'none'; } 
+        else if (state.restartRequest && state.restartRequest !== myRole) { restartBtn.textContent = "✅ 同意重開"; restartBtn.style.backgroundColor = "#E91E63"; restartBtn.onclick = () => requestRestart('agree'); rejectBtn.style.display = 'inline-block'; } 
+        else { restartBtn.textContent = "🆕 重開"; restartBtn.style.backgroundColor = "#4CAF50"; restartBtn.onclick = () => requestRestart('request'); rejectBtn.style.display = 'none'; }
+
+        if (state.undoRequest === myRole) { undoBtn.style.display = 'inline-block'; undoBtn.textContent = "❌ 等待..."; undoBtn.style.backgroundColor = "#9e9e9e"; undoBtn.onclick = () => requestUndo('cancel'); rejectUndoBtn.style.display = 'none'; } 
+        else if (state.undoRequest && state.undoRequest !== myRole) { undoBtn.style.display = 'inline-block'; undoBtn.textContent = "✅ 同意悔棋"; undoBtn.style.backgroundColor = "#E91E63"; undoBtn.onclick = () => requestUndo('agree'); rejectUndoBtn.style.display = 'inline-block'; } 
+        else { undoBtn.style.display = canUndo ? 'inline-block' : 'none'; undoBtn.textContent = "↩ 悔棋"; undoBtn.style.backgroundColor = "#ff9800"; undoBtn.onclick = () => requestUndo('request'); rejectUndoBtn.style.display = 'none'; }
+      } else { 
+        restartBtn.style.display = 'none'; rejectBtn.style.display = 'none'; undoBtn.style.display = 'none'; rejectUndoBtn.style.display = 'none';
+      }
+
+      // 🌟 控制觀棋者的覆盤按鈕顯示
+      if (myRole === 'spectator' && canUndo) {
+          if (!isReplaying) replayBtn.style.display = 'inline-block';
+      } else {
+          replayBtn.style.display = 'none';
+          if (stopReplayBtn) stopReplayBtn.style.display = 'none';
+          if (isReplaying) stopReplay(); // 若中途被選成玩家，強制結束覆盤
+      }
+
+      let reqMsg = "";
+      if (state.restartRequest && state.restartRequest !== myRole && myRole !== 'spectator') reqMsg = "對方請求重新開局！";
+      else if (state.restartRequest && myRole === 'spectator') reqMsg = (state.restartRequest === 'b' ? '黑方' : '紅方') + " 發起了重開請求...";
+      else if (state.undoRequest && state.undoRequest !== myRole && myRole !== 'spectator') reqMsg = "對方請求悔棋！";
+      else if (state.undoRequest && myRole === 'spectator') reqMsg = (state.undoRequest === 'b' ? '黑方' : '紅方') + " 發起了悔棋請求...";
+
+      if (reqMsg) { reqAlert.style.display = 'block'; reqAlert.textContent = reqMsg; } else { reqAlert.style.display = 'none'; }
+
+      let checkMsg = document.getElementById('check-msg');
+      if (state.status === 'check') { checkMsg.style.display = 'block'; checkMsg.textContent = state.checkMsg + " 將軍！"; } else { checkMsg.style.display = 'none'; }
+      
+      // 🌟 若不在覆盤模式，才正常渲染即時棋盤
+      if (!isReplaying) renderBoard();
+    }
+
+    function renderBoard() {
+      const grid = document.getElementById('board-grid'); grid.innerHTML = ''; let isFlipped = (myRole === 'b'); 
+      for (let displayR = 0; displayR < 10; displayR++) {
+        for (let displayC = 0; displayC < 9; displayC++) {
+          let r = isFlipped ? 9 - displayR : displayR; let c = isFlipped ? 8 - displayC : displayC;
+          let cellDiv = document.createElement('div'); cellDiv.className = 'cell'; cellDiv.dataset.r = r; cellDiv.dataset.c = c; cellDiv.onclick = () => handleCellClick(r, c);
+          
+          if (gameState.lastMove && gameState.lastMove.r1 === r && gameState.lastMove.c1 === c) cellDiv.classList.add('last-move-origin');
+
+          let p = gameState.board[r][c];
+          if (p) {
+            let pieceDiv = document.createElement('div'); pieceDiv.className = 'piece ' + (p === p.toLowerCase() ? 'black' : 'red');
+            if (selectedCell && selectedCell.r === r && selectedCell.c === c) pieceDiv.classList.add('selected');
+            if (gameState.lastMove && gameState.lastMove.r2 === r && gameState.lastMove.c2 === c) pieceDiv.classList.add('last-moved');
+            pieceDiv.textContent = piecesText[p]; cellDiv.appendChild(pieceDiv);
+          }
+          if (selectedCell && isMoveLegal(gameState.board, selectedCell.r, selectedCell.c, r, c)) {
+             if (!leavesKingInCheck(gameState.board, selectedCell.r, selectedCell.c, r, c, gameState.turn)) cellDiv.classList.add('valid-move');
+          }
+          grid.appendChild(cellDiv);
+        }
+      }
+    }
+
+    // ==========================================
+    // 🌟 觀戰模式：覆盤系統 (Review System)
+    // ==========================================
+    function getInitialBoardLocal() {
+      return [
+        ['r','h','e','a','k','a','e','h','r'],['','','','','','','','',''],['','c','','','','','','c',''],['p','','p','','p','','p','','p'],['','','','','','','','',''],
+        ['','','','','','','','',''],['P','','P','','P','','P','','P'],['','C','','','','','','C',''],['','','','','','','','',''],['R','H','E','A','K','A','E','H','R']
+      ];
+    }
+
+    function startReplay() {
+      if (!gameState || !gameState.history || gameState.history.length === 0) {
+        updateInformation("沒有歷史紀錄可以覆盤！"); return;
+      }
+      if (isReplaying) return;
+      
+      isReplaying = true;
+      isReplayPaused = false;
+      replayStep = 0;
+      replaySteps = gameState.history;
+
+      // 🌟 核心修改 3：讓覆盤能抓到正確的起點
+      if (gameState.initialBoard) {
+        console.log('getinitialBoard',gameState.initialBoard )
+        replayBoard = JSON.parse(JSON.stringify(gameState.initialBoard));
+      } else {
+        replayBoard = getInitialBoardLocal();
+      }
+      
+      let replayBtn = document.getElementById('btn-replay');
+      replayBtn.style.backgroundColor = "#FF9800"; 
+      replayBtn.textContent = "⏸️ 暫停";
+      replayBtn.onclick = toggleReplayPlayPause;
+      
+      let stopBtn = document.getElementById('btn-replay-stop');
+      stopBtn.style.display = 'inline-block'; 
+      
+      updateInformation("開始覆盤...");
+      renderCustomBoard(replayBoard, null); 
+      
+      runReplayInterval();
+    }
+
+    function toggleReplayPlayPause() {
+      let replayBtn = document.getElementById('btn-replay');
+      if (isReplayPaused) {
+        isReplayPaused = false;
+        replayBtn.style.backgroundColor = "#FF9800";
+        replayBtn.textContent = "⏸️ 暫停";
+        updateInformation("繼續覆盤...");
+        runReplayInterval();
+      } else {
+        isReplayPaused = true;
+        clearInterval(replayInterval);
+        replayBtn.style.backgroundColor = "#4CAF50";
+        replayBtn.textContent = "▶️ 繼續";
+        updateInformation("覆盤已暫停。");
+      }
+    }
+
+    function runReplayInterval() {
+      clearInterval(replayInterval);
+      replayInterval = setInterval(() => {
+        if (replayStep >= replaySteps.length) {
+          clearInterval(replayInterval);
+          isReplayPaused = true; 
+          document.getElementById('btn-replay').style.display = 'none'; 
+          updateInformation("覆盤結束，請按「結束」返回即時戰況。");
+          return;
+        }
+        
+        let move = replaySteps[replayStep];
+        let p = replayBoard[move.r1][move.c1];
+        replayBoard[move.r2][move.c2] = p;
+        replayBoard[move.r1][move.c1] = '';
+        
+        let notation = getMoveNotation(p, move.r1, move.c1, move.r2, move.c2);
+        updateInformation(`覆盤 [${replayStep + 1}/${replaySteps.length}]: ${notation}`);
+        
+        renderCustomBoard(replayBoard, move);
+        replayStep++;
+      }, 3000); // 3 秒走一步
+    }
+
+    function stopReplay() {
+      if (!isReplaying) return;
+      isReplaying = false;
+      isReplayPaused = false;
+      clearInterval(replayInterval);
+      
+      let replayBtn = document.getElementById('btn-replay');
+      replayBtn.style.backgroundColor = "#9C27B0";
+      replayBtn.textContent = "▶️ 覆盤";
+      replayBtn.onclick = startReplay;
+      
+      let stopBtn = document.getElementById('btn-replay-stop');
+      stopBtn.style.display = 'none';
+      
+      updateInformation("已結束覆盤，返回即時盤面。");
+      updateUI(gameState); 
+    }
+
+    function renderCustomBoard(customBoard, lastMoveMarker) {
+      const grid = document.getElementById('board-grid'); grid.innerHTML = ''; 
+      let isFlipped = (myRole === 'b'); 
+      for (let displayR = 0; displayR < 10; displayR++) {
+        for (let displayC = 0; displayC < 9; displayC++) {
+          let r = isFlipped ? 9 - displayR : displayR; let c = isFlipped ? 8 - displayC : displayC;
+          let cellDiv = document.createElement('div'); cellDiv.className = 'cell'; 
+          
+          if (lastMoveMarker && lastMoveMarker.r1 === r && lastMoveMarker.c1 === c) cellDiv.classList.add('last-move-origin');
+
+          let p = customBoard[r][c];
+          if (p) {
+            let pieceDiv = document.createElement('div'); pieceDiv.className = 'piece ' + (p === p.toLowerCase() ? 'black' : 'red');
+            if (lastMoveMarker && lastMoveMarker.r2 === r && lastMoveMarker.c2 === c) pieceDiv.classList.add('last-moved');
+            pieceDiv.textContent = piecesText[p]; cellDiv.appendChild(pieceDiv);
+          }
+          grid.appendChild(cellDiv);
+        }
+      }
+    }
+    // ==========================================
+
+    function handleCellClick(r, c) {
+      if (myRole === 'spectator' || gameState.turn !== myRole || isAiThinking) return;
+      let clickedPiece = gameState.board[r][c]; let isMyPiece = clickedPiece && (myRole === 'b' ? clickedPiece === clickedPiece.toLowerCase() : clickedPiece === clickedPiece.toUpperCase());
+      if (selectedCell) {
+        if (selectedCell.r === r && selectedCell.c === c) selectedCell = null; else if (isMyPiece) selectedCell = { r: r, c: c }; 
+        else { 
+          if (isMoveLegal(gameState.board, selectedCell.r, selectedCell.c, r, c)) { 
+            if (!leavesKingInCheck(gameState.board, selectedCell.r, selectedCell.c, r, c, myRole)) commitMove(selectedCell.r, selectedCell.c, r, c); 
+            else updateInformation("不能送將！");
+          } 
+        }
+      } else { if (isMyPiece) selectedCell = { r: r, c: c }; } renderBoard();
+    }
+
+    let syncQueue = []; let isProcessingQueue = false;
+    async function processSyncQueue() {
+      if (isProcessingQueue) return; isProcessingQueue = true; isSyncing = true;
+      while (syncQueue.length > 0) {
+        let stateToSync = syncQueue[syncQueue.length - 1]; syncQueue = []; 
+        try { await updateChess('move', { state: stateToSync }); } catch(e) {}
+      }
+      isProcessingQueue = false; isSyncing = false;
+    }
+
+    // 🌟 【極致壓縮版】 commitMove
+    function commitMove(r1, c1, r2, c2) {
+      lastActionTime = Date.now(); 
+      let nextState = JSON.parse(JSON.stringify(gameState));
+      if (!nextState.history) nextState.history = []; 
+      
+      // 不存盤面，只存移動座標與被吃掉的棋子
+      nextState.history.push({ 
+          r1: r1, c1: c1, r2: r2, c2: c2,
+          eaten: nextState.board[r2][c2],
+          oldTurn: gameState.turn,
+          oldStatus: gameState.status,
+          oldCheckMsg: gameState.checkMsg,
+          oldLastMove: gameState.lastMove ? Object.assign({}, gameState.lastMove) : null
+      }); 
+      
+      // 極致壓縮後容量極小，保留 500 步都沒問題
+      if (nextState.history.length > 500) nextState.history.shift(); 
+      
+      nextState.board[r2][c2] = nextState.board[r1][c1]; 
+      nextState.board[r1][c1] = '';
+      
+      let nextTurn = gameState.turn === 'b' ? 'r' : 'b'; 
+      let checkAlert = ''; let status = 'playing';
+      if (isKingAttacked(nextState.board, nextTurn)) { status = 'check'; checkAlert = nextTurn === 'b' ? '黑方' : '紅方'; }
+      
+      nextState.turn = nextTurn; nextState.status = status; nextState.checkMsg = checkAlert; 
+      nextState.restartRequest = null; nextState.undoRequest = null; 
+      nextState.lastMove = { r1: r1, c1: c1, r2: r2, c2: c2 };
+      
+      selectedCell = null; 
+      updateUI(nextState); 
+      syncQueue.push(gameState);
+      processSyncQueue();
+    }
+
+    const PIECE_VALUES = { 'k':100000, 'r':1000, 'c':550, 'h':500, 'e':250, 'a':250, 'p':100, 'K':100000, 'R':1000, 'C':550, 'H':500, 'E':250, 'A':250, 'P':100 };
+
+    function evaluateBoard(board, aiColor) {
+      let score = 0;
+      for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 9; c++) {
+          let p = board[r][c];
+          if (p) {
+            let isBlack = (p === p.toLowerCase()); let forwardR = isBlack ? r : 9 - r; let absC = Math.abs(c - 4); let val = PIECE_VALUES[p]; let pType = p.toLowerCase();
+            if (pType === 'p') { if (forwardR > 4) val += 80 + forwardR * 15 + (4 - absC) * 15; else val += forwardR * 5; } 
+            else if (pType === 'h') { val += (4 - absC) * 12 + forwardR * 8; if (c === 0 || c === 8) val -= 40; if (forwardR === 9) val -= 30; } 
+            else if (pType === 'c') { val += (4 - absC) * 8; if (forwardR > 4) val += 20; if (forwardR === 0) val += 15; } 
+            else if (pType === 'r') {
+              if (forwardR > 0) val += 25; if (c === 4) val += 20; if (forwardR === 8 || forwardR === 9) val += 30; 
+              let openFile = true; for(let scanR=0; scanR<10; scanR++) { if(board[scanR][c] && board[scanR][c].toLowerCase() === 'p') openFile = false; }
+              if(openFile) val += 30;
+            }
+            if (getColor(p) === aiColor) score += val; else score -= val;
+          }
+        }
+      }
+      let aiOppColor = aiColor === 'b' ? 'r' : 'b';
+      if (isKingAttacked(board, aiColor)) score -= 150;
+      if (isKingAttacked(board, aiOppColor)) score += 150;
+      return score;
+    }
+
+    function getAllLegalMovesList(board, color) {
+      let moves = [];
+      for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 9; c++) {
+          if (getColor(board[r][c]) === color) {
+            for (let tr = 0; tr < 10; tr++) {
+              for (let tc = 0; tc < 9; tc++) {
+                if (isMoveLegal(board, r, c, tr, tc) && !leavesKingInCheck(board, r, c, tr, tc, color)) {
+                  let p = board[r][c]; let target = board[tr][tc]; let moveScore = 0;
+                  if (target !== '') moveScore = PIECE_VALUES[target] * 10 - PIECE_VALUES[p];
+                  else moveScore = ((color === 'b') ? tr - r : r - tr) + (4 - Math.abs(tc - 4));
+                  moves.push({ r1: r, c1: c, r2: tr, c2: tc, score: moveScore });
+                }
+              }
+            }
+          }
+        }
+      }
+      moves.sort((a, b) => b.score - a.score); return moves;
+    }
+
+    function quiesce(board, alpha, beta, isMaximizing, aiColor, qDepth) {
+      let currentColor = isMaximizing ? aiColor : (aiColor === 'b' ? 'r' : 'b'); let inCheck = isKingAttacked(board, currentColor); let stand_pat = evaluateBoard(board, aiColor);
+      if (!inCheck) { if (isMaximizing) { if (stand_pat >= beta) return beta; alpha = Math.max(alpha, stand_pat); } else { if (stand_pat <= alpha) return alpha; beta = Math.min(beta, stand_pat); } }
+      if (qDepth > 3) return stand_pat;
+      let moves = getAllLegalMovesList(board, currentColor);
+      if (inCheck && moves.length === 0) return isMaximizing ? -99999 - qDepth : 99999 + qDepth;
+      if (!inCheck) moves = moves.filter(m => board[m.r2][m.c2] !== ''); 
+      let bestScore = stand_pat; if (inCheck) bestScore = isMaximizing ? -Infinity : Infinity;
+      for (let move of moves) {
+          let p = board[move.r1][move.c1]; let target = board[move.r2][move.c2]; board[move.r2][move.c2] = p; board[move.r1][move.c1] = '';
+          let score = quiesce(board, alpha, beta, !isMaximizing, aiColor, qDepth + 1);
+          board[move.r1][move.c1] = p; board[move.r2][move.c2] = target;
+          if (isMaximizing) { bestScore = Math.max(bestScore, score); alpha = Math.max(alpha, score); if (beta <= alpha) break; } 
+          else { bestScore = Math.min(bestScore, score); beta = Math.min(beta, score); if (beta <= alpha) break; }
+      }
+      return bestScore;
+    }
+
+    function minimax(board, depth, alpha, beta, isMaximizing, aiColor) {
+      if (depth === 0) return quiesce(board, alpha, beta, isMaximizing, aiColor, 0);
+      let currentColor = isMaximizing ? aiColor : (aiColor === 'b' ? 'r' : 'b'); let moves = getAllLegalMovesList(board, currentColor);
+      if (moves.length === 0) return isMaximizing ? -99999 - depth : 99999 + depth;
+      if (isMaximizing) {
+        let maxEval = -Infinity;
+        for (let move of moves) {
+          let p = board[move.r1][move.c1]; let target = board[move.r2][move.c2]; board[move.r2][move.c2] = p; board[move.r1][move.c1] = '';
+          let ev = minimax(board, depth - 1, alpha, beta, false, aiColor);
+          board[move.r1][move.c1] = p; board[move.r2][move.c2] = target; 
+          maxEval = Math.max(maxEval, ev); alpha = Math.max(alpha, ev); if (beta <= alpha) break; 
+        } return maxEval;
+      } else {
+        let minEval = Infinity;
+        for (let move of moves) {
+          let p = board[move.r1][move.c1]; let target = board[move.r2][move.c2]; board[move.r2][move.c2] = p; board[move.r1][move.c1] = '';
+          let ev = minimax(board, depth - 1, alpha, beta, true, aiColor);
+          board[move.r1][move.c1] = p; board[move.r2][move.c2] = target; 
+          minEval = Math.min(minEval, ev); beta = Math.min(beta, ev); if (beta <= alpha) break; 
+        } return minEval;
+      }
+    }
+
+    async function makeAIMove() {
+      try {
+        await new Promise(r => setTimeout(r, 100)); 
+        if (!isAiMode || gameState.turn !== aiRole || (gameState.status !== 'playing' && gameState.status !== 'check')) return;
+
+        let aiLevel = sessionStorage.getItem('xq_ai_level_' + room) || 'easy'; let validMoves = getAllLegalMovesList(gameState.board, aiRole);
+        if (validMoves.length === 0) {
+          let currentBoardStr = JSON.stringify(gameState.board);
+          if (lastSurrenderedBoard !== currentBoardStr) { lastSurrenderedBoard = currentBoardStr; updateInformation("對局結束：電腦無棋可走"); } return;
+        }
+
+        let totalPieces = 0; for (let r=0; r<10; r++) for (let c=0; c<9; c++) if (gameState.board[r][c] !== '') totalPieces++;
+        let isCurrentlyInCheck = isKingAttacked(gameState.board, aiRole); let turnCount = gameState.history ? gameState.history.length : 0;
+
+        /*if (turnCount <= 4 && !isCurrentlyInCheck) { 
+          let openings = [];
+          if (aiRole === 'b') openings = [ {r1:2, c1:1, r2:2, c2:4}, {r1:2, c1:7, r2:2, c2:4}, {r1:0, c1:1, r2:2, c2:2}, {r1:0, c1:7, r2:2, c2:6}, {r1:0, c1:2, r2:2, c2:4}, {r1:0, c1:6, r2:2, c2:4}, {r1:3, c1:2, r2:4, c2:2}, {r1:3, c1:6, r2:4, c2:6} ];
+          else openings = [ {r1:7, c1:1, r2:7, c2:4}, {r1:7, c1:7, r2:7, c2:4}, {r1:9, c1:1, r2:7, c2:2}, {r1:9, c1:7, r2:7, c2:6}, {r1:9, c1:2, r2:7, c2:4}, {r1:9, c1:6, r2:7, c2:4}, {r1:6, c1:2, r2:5, c2:2}, {r1:6, c1:6, r2:5, c2:6} ];
+          
+          let legalOpenings = openings.filter(m => isMoveLegal(gameState.board, m.r1, m.c1, m.r2, m.c2) && !leavesKingInCheck(gameState.board, m.r1, m.c1, m.r2, m.c2, aiRole));
+          if (legalOpenings.length > 0) { let bestMove = legalOpenings[Math.floor(Math.random() * legalOpenings.length)]; commitMove(bestMove.r1, bestMove.c1, bestMove.r2, bestMove.c2); return; }
+        }*/
+
+        // 🌟 修正：只有在滿盤 (總棋子數接近32) 時才使用開局庫，且必須檢查棋子是不是自己的！
+        if (turnCount <= 4 && !isCurrentlyInCheck && totalPieces >= 30) { 
+          let openings = [];
+          if (aiRole === 'b') openings = [ {r1:2, c1:1, r2:2, c2:4}, {r1:2, c1:7, r2:2, c2:4}, {r1:0, c1:1, r2:2, c2:2}, {r1:0, c1:7, r2:2, c2:6}, {r1:0, c1:2, r2:2, c2:4}, {r1:0, c1:6, r2:2, c2:4}, {r1:3, c1:2, r2:4, c2:2}, {r1:3, c1:6, r2:4, c2:6} ];
+          else openings = [ {r1:7, c1:1, r2:7, c2:4}, {r1:7, c1:7, r2:7, c2:4}, {r1:9, c1:1, r2:7, c2:2}, {r1:9, c1:7, r2:7, c2:6}, {r1:9, c1:2, r2:7, c2:4}, {r1:9, c1:6, r2:7, c2:4}, {r1:6, c1:2, r2:5, c2:2}, {r1:6, c1:6, r2:5, c2:6} ];
+          
+          let legalOpenings = openings.filter(m => 
+            getColor(gameState.board[m.r1][m.c1]) === aiRole && // 👈 關鍵修正：確保要動的棋子是 AI 自己的顏色
+            isMoveLegal(gameState.board, m.r1, m.c1, m.r2, m.c2) && 
+            !leavesKingInCheck(gameState.board, m.r1, m.c1, m.r2, m.c2, aiRole)
+          );
+          if (legalOpenings.length > 0) { let bestMove = legalOpenings[Math.floor(Math.random() * legalOpenings.length)]; commitMove(bestMove.r1, bestMove.c1, bestMove.r2, bestMove.c2); return; }
+        }
+
+        let bestVal = -Infinity;
+        let searchDepth = 2; if (aiLevel === 'hard') { searchDepth = totalPieces <= 16 ? 5 : 4; }
+        let candidateMoves = [];
+
+        let lastMyMove = null;
+        if (gameState.history) {
+            for (let i = gameState.history.length - 1; i >= 0; i--) {
+                if (gameState.history[i].oldTurn === aiRole) { lastMyMove = gameState.history[i]; break; }
+            }
+        }
+
+        for (let move of validMoves) {
+          let p = gameState.board[move.r1][move.c1]; let target = gameState.board[move.r2][move.c2];
+          gameState.board[move.r2][move.c2] = p; gameState.board[move.r1][move.c1] = '';
+          let moveVal = minimax(gameState.board, searchDepth - 1, -Infinity, Infinity, false, aiRole);
+          gameState.board[move.r1][move.c1] = p; gameState.board[move.r2][move.c2] = target; 
+
+          if (lastMyMove && move.r1 === lastMyMove.r2 && move.c1 === lastMyMove.c2 && move.r2 === lastMyMove.r1 && move.c2 === lastMyMove.c1) {
+              moveVal -= 50000;
+          }
+
+          if (aiLevel === 'easy') moveVal += (Math.random() * 100 - 50); 
+          else moveVal += Math.random() * 2; 
+
+          if (moveVal > bestVal) { bestVal = moveVal; candidateMoves = [move]; } 
+          else if (moveVal === bestVal) { candidateMoves.push(move); }
+          await new Promise(r => setTimeout(r, 0));
+        }
+
+        let bestMove = candidateMoves[Math.floor(Math.random() * candidateMoves.length)];
+        commitMove(bestMove.r1, bestMove.c1, bestMove.r2, bestMove.c2); 
+
+      } finally { isAiThinking = false; }
+    }
+    Update_GAS();
+    function getColor(p) { return p === '' ? '' : (p === p.toLowerCase() ? 'b' : 'r'); }
+    function isMoveLegal(board, r1, c1, r2, c2) {
+      let p = board[r1][c1]; let target = board[r2][c2]; if (p === '') return false; if (target !== '' && getColor(p) === getColor(target)) return false; 
+      let dr = r2 - r1; let dc = c2 - c1; let adr = Math.abs(dr), adc = Math.abs(dc); let pType = p.toLowerCase(), color = getColor(p);
+      switch (pType) {
+        case 'p': if (color === 'b') return (dr === 1 && dc === 0) || (r1 >= 5 && dr === 0 && adc === 1); else return (dr === -1 && dc === 0) || (r1 <= 4 && dr === 0 && adc === 1);
+        case 'r': if (adr > 0 && adc > 0) return false; return countPiecesBetween(board, r1, c1, r2, c2) === 0;
+        case 'h': if (adr === 2 && adc === 1) return board[r1 + dr/2][c1] === ''; if (adr === 1 && adc === 2) return board[r1][c1 + dc/2] === ''; return false;
+        case 'e': if (adr !== 2 || adc !== 2) return false; if (color === 'b' && r2 > 4) return false; if (color === 'r' && r2 < 5) return false; return board[r1 + dr/2][c1 + dc/2] === ''; 
+        case 'a': if (adr !== 1 || adc !== 1) return false; if (c2 < 3 || c2 > 5) return false; if (color === 'b' && r2 > 2) return false; if (color === 'r' && r2 < 7) return false; return true;
+        case 'k': if (adr + adc !== 1) return false; if (c2 < 3 || c2 > 5) return false; if (color === 'b' && r2 > 2) return false; if (color === 'r' && r2 < 7) return false; return true;
+        case 'c': if (adr > 0 && adc > 0) return false; let between = countPiecesBetween(board, r1, c1, r2, c2); if (target === '') return between === 0; else return between === 1; 
+      } return false;
+    }
+    function countPiecesBetween(board, r1, c1, r2, c2) { let count = 0; if (r1 === r2) { let minC = Math.min(c1, c2), maxC = Math.max(c1, c2); for (let c = minC + 1; c < maxC; c++) if (board[r1][c] !== '') count++; } else { let minR = Math.min(r1, r2), maxR = Math.max(r1, r2); for (let r = minR + 1; r < maxR; r++) if (board[r][c1] !== '') count++; } return count; }
+    function isKingAttacked(board, kingColor) { let kr = -1, kc = -1, targetKing = kingColor === 'b' ? 'k' : 'K'; for (let r=0; r<10; r++) { for (let c=0; c<9; c++) { if (board[r][c] === targetKing) { kr = r; kc = c; break; } } if (kr !== -1) break; } if (kr === -1) return true; let oppColor = kingColor === 'b' ? 'r' : 'b'; for (let r=0; r<10; r++) { for (let c=0; c<9; c++) { if (getColor(board[r][c]) === oppColor) { if (isMoveLegal(board, r, c, kr, kc)) return true; } } } return false; }
+    function leavesKingInCheck(board, r1, c1, r2, c2, color) { 
+      let p = board[r1][c1]; let target = board[r2][c2]; board[r2][c2] = p; board[r1][c1] = ''; 
+      let inCheck = isKingAttacked(board, color); let bkR=-1, bkC=-1, rkR=-1, rkC=-1; 
+      if (!inCheck) {
+        for (let r=0; r<10; r++) { for (let c=0; c<9; c++) { if (board[r][c] === 'k') { bkR = r; bkC = c; } if (board[r][c] === 'K') { rkR = r; rkC = c; } } } 
+        if (bkC === rkC && bkC !== -1) { if (countPiecesBetween(board, bkR, bkC, rkR, rkC) === 0) inCheck = true; } 
+      }
+      board[r1][c1] = p; board[r2][c2] = target; return inCheck; 
+    }
+    
+    window.onload = init;
+
+
+
+    window['closeRoleModal']=closeRoleModal;
+    window['requestRole']=requestRole;
+    window['startAiGame']=startAiGame;
+    window['showRoleModal']=showRoleModal;
+    window['startReplay']=startReplay;
+    window['stopReplay']=stopReplay;
+    window['requestRestart']=requestRestart;
+    window['requestUndo']=requestUndo;
+    
+    
