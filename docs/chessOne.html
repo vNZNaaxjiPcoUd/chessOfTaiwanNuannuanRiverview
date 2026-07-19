@@ -36,6 +36,7 @@
     
     .check-alert { color: red; font-size: clamp(18px, 4vw, 24px); font-weight: bold; animation: blink 1s infinite; display: none; margin: 5px; }
     .req-alert { color: #E91E63; font-size: clamp(16px, 3.5vw, 20px); font-weight: bold; animation: blink 1.5s infinite; display: none; margin: 5px; }
+    .think-alert { color: #e91eba; font-size: clamp(16px, 3.5vw, 20px); font-weight: bold; animation: blink 0.9s infinite; display: none; margin: 5px; }
     @keyframes blink { 50% { opacity: 0; } }
     
     #board-container {
@@ -126,6 +127,7 @@
   </div>
   
   <div id="req-alert" class="req-alert"></div>
+  <div id="think-alert" class="think-alert"></div>
   <div id="check-msg" class="check-alert">將軍！</div>
   <div id="info">等待同步...</div>
 
