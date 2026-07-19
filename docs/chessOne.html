@@ -27,8 +27,8 @@
     
     .status-container { display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 5px; flex-wrap: wrap; }
     
-    #info { font-size: 14px; color: #a0a0a0; white-space: pre-wrap; line-height: 1.6; font-family: sans-serif; }
-    #info::first-line { font-size: 24px; color: #2584f0; font-weight: bold; }
+    #info { font-size: 10px; color: #a0a0a0; white-space: pre-wrap; line-height: 1.6; font-family: sans-serif; }
+    #info::first-line { font-size: 18px; color: #2584f0; font-weight: bold; }
     
     .btn-undo, .btn-reselect, .btn-restart, .btn-reject { padding: 5px 15px; border-radius: 15px; font-size: clamp(0.5rem, 0.4rem + 0.5vw, 0.8125rem); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
     .btn-undo { background-color: #ff9800; } .btn-reselect { background-color: #2196F3; }
@@ -84,11 +84,11 @@
       
       <button id="btn-role-b" class="modal-btn" onclick="requestRole('b')">執黑棋</button>
       <button id="btn-role-r" class="modal-btn" onclick="requestRole('r')">執紅棋</button>
-      <button id="btn-role-s" class="modal-btn" onclick="requestRole('spectator')">觀棋</button>
+      <button id="btn-role-s" class="modal-btn" onclick="requestRole('spectator')">當觀棋者</button>
 
       <div id="ai-menu-section">
         <hr style="border: 0; height: 1px; background: #ddd; margin: 20px 0 10px 0;">
-        <div class="modal-subtitle">AI對戰 </div>
+        <div class="modal-subtitle">和AI對戰 </div>
         <div class="ai-btn-group">
           <span class="modal-subtitle">簡單：</span>
           <button class="modal-btn btn-ai-easy" onclick="startAiGame('b', 'easy')">執黑</button>
