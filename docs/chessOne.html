@@ -79,8 +79,8 @@
   <div id="role-modal">
     <div class="modal-content">
       <span id="close-modal-btn" style="position:absolute; top:10px; right:15px; font-size:24px; cursor:pointer; display:block; color:#999;" onclick="closeRoleModal()">&times;</span>
-      <h3 style="margin-top:0;">選擇身分</h3>
-      <p style="font-size:14px; color:#666; margin-bottom: 15px;">兩人連線對奕：<span id="modal-room-name"></span></p>
+
+      <span>連線對戰 </span><span id="modal-room-name"></span>
       
       <button id="btn-role-b" class="modal-btn" onclick="requestRole('b')">執黑棋</button>
       <button id="btn-role-r" class="modal-btn" onclick="requestRole('r')">執紅棋</button>
@@ -88,13 +88,14 @@
 
       <div id="ai-menu-section">
         <hr style="border: 0; height: 1px; background: #ddd; margin: 20px 0 10px 0;">
-        <div class="modal-subtitle">▶ AI對戰 (簡單)</div>
+        <div class="modal-subtitle">AI對戰 </div>
         <div class="ai-btn-group">
+          <span class="modal-subtitle">簡單：</span>
           <button class="modal-btn btn-ai-easy" onclick="startAiGame('b', 'easy')">執黑</button>
           <button class="modal-btn btn-ai-easy" onclick="startAiGame('r', 'easy')">執紅</button>
         </div>
-        <div class="modal-subtitle">▶ AI對戰 (高級)</div>
         <div class="ai-btn-group">
+          <span class="modal-subtitle">高級：</span>
           <button class="modal-btn btn-ai-hard" onclick="startAiGame('b', 'hard')">執黑</button>
           <button class="modal-btn btn-ai-hard" onclick="startAiGame('r', 'hard')">執紅</button>
         </div>
