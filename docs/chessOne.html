@@ -30,7 +30,7 @@
     #info { font-size: 14px; color: #a0a0a0; white-space: pre-wrap; line-height: 1.6; font-family: sans-serif; }
     #info::first-line { font-size: 24px; color: #2584f0; font-weight: bold; }
     
-    .btn-undo, .btn-reselect, .btn-restart, .btn-reject { padding: 5px 10px; font-size: clamp(12px, 3vw, 15px); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .btn-undo, .btn-reselect, .btn-restart, .btn-reject { padding: 5px 10px; font-size: clamp(0.5rem, 0.4rem + 0.5vw, 0.8125rem); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
     .btn-undo { background-color: #ff9800; } .btn-reselect { background-color: #2196F3; }
     .btn-restart { background-color: #4CAF50; } .btn-reject { background-color: #d32f2f; }
     
@@ -70,7 +70,7 @@
     .btn-ai-easy { background: #8D6E63; margin: 0 !important; flex: 1; } .btn-ai-hard { background: #5E35B1; margin: 0 !important; flex: 1; }
     .ai-btn-group { display: flex; gap: 8px; margin-bottom: 12px; }
     .modal-subtitle { margin: 15px 0 8px 0; color: #444; font-size: 15px; font-weight: bold; text-align: left;}
-    .role-badge { display: inline-block; padding: 5px 15px; border-radius: 15px; color: white; background: #555; font-size: clamp(12px, 3vw, 15px); margin-bottom: 5px; }
+    .role-badge { display: inline-block; padding: 5px 15px; border-radius: 15px; color: white; background: #555; font-size: clamp(0.5rem, 0.4rem + 0.5vw, 0.8125rem); margin-bottom: 5px; }
     .role-b { background: #212121; } .role-r { background: #d32f2f; }
   </style>
 </head>
@@ -79,8 +79,8 @@
   <div id="role-modal">
     <div class="modal-content">
       <span id="close-modal-btn" style="position:absolute; top:10px; right:15px; font-size:24px; cursor:pointer; display:block; color:#999;" onclick="closeRoleModal()">&times;</span>
-      <h3 style="margin-top:0;">請選擇身分</h3>
-      <p style="font-size:14px; color:#666; margin-bottom: 15px;">對奕棋局：<span id="modal-room-name"></span></p>
+      <h3 style="margin-top:0;">選擇身分</h3>
+      <p style="font-size:14px; color:#666; margin-bottom: 15px;">兩人連線對奕：<span id="modal-room-name"></span></p>
       
       <button id="btn-role-b" class="modal-btn" onclick="requestRole('b')">執黑棋</button>
       <button id="btn-role-r" class="modal-btn" onclick="requestRole('r')">執紅棋</button>
@@ -88,12 +88,12 @@
 
       <div id="ai-menu-section">
         <hr style="border: 0; height: 1px; background: #ddd; margin: 20px 0 10px 0;">
-        <div class="modal-subtitle">▶ 單機練習 (簡單)</div>
+        <div class="modal-subtitle">▶ AI對戰 (簡單)</div>
         <div class="ai-btn-group">
           <button class="modal-btn btn-ai-easy" onclick="startAiGame('b', 'easy')">執黑</button>
           <button class="modal-btn btn-ai-easy" onclick="startAiGame('r', 'easy')">執紅</button>
         </div>
-        <div class="modal-subtitle">▶ 單機練習 (高級)</div>
+        <div class="modal-subtitle">▶ AI對戰 (高級)</div>
         <div class="ai-btn-group">
           <button class="modal-btn btn-ai-hard" onclick="startAiGame('b', 'hard')">執黑</button>
           <button class="modal-btn btn-ai-hard" onclick="startAiGame('r', 'hard')">執紅</button>
@@ -103,9 +103,8 @@
   </div>
 
   <h2 id="room-title"></h2>
-  <div id="role-info" class="role-badge">連線中...</div>
-  
   <div class="status-container">
+  
     <button class="btn-reselect" onclick="showRoleModal()">🔄 切換角色</button>
     
     <button id="btn-replay" class="btn-reselect" style="display:none; background-color: #9C27B0;" onclick="startReplay()">▶️ 覆盤</button>
@@ -115,6 +114,7 @@
     <button id="reject-btn" class="btn-reject" style="display:none;" onclick="requestRestart('reject')">⛔ 拒絕</button>
     <button id="undo-btn" class="btn-undo" style="display:none;"></button>
     <button id="reject-undo-btn" class="btn-reject" style="display:none;" onclick="requestUndo('reject')">⛔ 拒絕</button>
+    <span id="role-info" class="role-badge">連線中...</span>
   </div>
   
   <div id="board-container">
