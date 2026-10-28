@@ -133,22 +133,22 @@
 
       <span>連線 </span><span id="modal-room-name"></span>
       
-      <button id="btn-role-b" class="modal-btn" onclick="requestRole('b')">執黑棋</button>
-      <button id="btn-role-r" class="modal-btn" onclick="requestRole('r')">執紅棋</button>
-      <button id="btn-role-s" class="modal-btn" onclick="requestRole('spectator')">觀棋者</button>
+      <button id="btn-role-b" class="modal-btn" >執黑棋</button>
+      <button id="btn-role-r" class="modal-btn" >執紅棋</button>
+      <button id="btn-role-s" class="modal-btn" >觀棋者</button>
 
       <div id="ai-menu-section">
         <hr style="border: 0; height: 3px; background: darkblue; margin: 25px 0; ">
         <div class="modal-subtitle">與電腦對奕 </div>
         <div class="ai-btn-group">
           <span class="modal-subtitle">初級</span>
-          <button class="modal-btn btn-ai-easy" onclick="startAiGame('b', 'easy')">執黑</button>
-          <button class="modal-btn btn-ai-easy" onclick="startAiGame('r', 'easy')">執紅</button>
+          <button id="easy-handle-black" class="modal-btn btn-ai-easy" >執黑</button>
+          <button id="easy-handle-red" class="modal-btn btn-ai-easy" >執紅</button>
         </div>
         <div class="ai-btn-group">
           <span class="modal-subtitle">高級</span>
-          <button class="modal-btn btn-ai-hard" onclick="startAiGame('b', 'hard')">執黑</button>
-          <button class="modal-btn btn-ai-hard" onclick="startAiGame('r', 'hard')">執紅</button>
+          <button id="adv-handle-black" class="modal-btn btn-ai-hard" >執黑</button>
+          <button id="adv-handle-red" class="modal-btn btn-ai-hard" >執紅</button>
         </div>
       </div>
     </div>
@@ -157,15 +157,15 @@
   <h2 id="room-title"></h2>
   <div class="status-container">
   
-    <button class="btn-reselect" onclick="showRoleModal()">🔄 切換角色</button>
+    <button id="show-role-modal" class="btn-reselect" >🔄 切換角色</button>
     
-    <button id="btn-replay" class="btn-reselect" style="display:none; background-color: #9C27B0;" onclick="startReplay()">▶️ 覆盤</button>
-    <button id="btn-replay-stop" class="btn-reject" style="display:none; background-color: #757575;" onclick="stopReplay()">⏹️ 結束</button>
+    <button id="btn-replay" class="btn-reselect" style="display:none; background-color: #9C27B0;" >▶️ 覆盤</button>
+    <button id="btn-replay-stop" class="btn-reject" style="display:none; background-color: #757575;" >⏹️ 結束</button>
     
     <button id="restart-btn" class="btn-restart" style="display:none;"></button>
-    <button id="reject-btn" class="btn-reject" style="display:none;" onclick="requestRestart('reject')">⛔ 拒絕</button>
+    <button id="reject-btn" class="btn-reject" style="display:none;" >⛔ 拒絕</button>
     <button id="undo-btn" class="btn-undo" style="display:none;">OK</button>
-    <button id="reject-undo-btn" class="btn-reject" style="display:none;" onclick="requestUndo('reject')">⛔ 拒絕</button>
+    <button id="reject-undo-btn" class="btn-reject" style="display:none;" >⛔ 拒絕</button>
     <span id="role-info" class="role-badge">連線中...</span>
   </div>
   
