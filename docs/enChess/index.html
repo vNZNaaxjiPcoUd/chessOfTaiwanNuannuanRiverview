@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Chess</title>
+  
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#333333">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    ::-webkit-scrollbar { display: none; }
+    html, body { -ms-overflow-style: none; scrollbar-width: none; }
+
+    :root {
+      /* 8x8 grid calculation */
+      --cell-size: min(calc((100vw - 0.2rem - 6px) / 8), calc((100vh - 0.2rem - 15rem) / 9)); 
+      --font-size: calc(var(--cell-size) * 0.75);
+      --font-size-btn-model: max(calc(var(--cell-size) * 0.33), 12px);
+      --font-size-btn: max(calc(var(--cell-size) * 0.33), 10px);
+      --font-size-title: max(calc(var(--cell-size) * 0.36), 12px);
+    }
+
+    body { 
+      font-family: sans-serif; 
+      text-align: center; 
+      background: #f0f0f0; 
+      margin: 0; 
+      padding: 0.1rem; 
+      touch-action: pan-y; 
+      overflow-x: hidden; 
+    }
+    
+    h2 { margin: 5px 0; font-size: var(--font-size-title); }
+    
+    .status-container { 
+      display: flex !important; 
+      justify-content: center; 
+      align-items: center; 
+      gap: 8px; 
+      margin-bottom: 5px; 
+      flex-wrap: wrap; 
+      position: relative;
+      z-index: 10;
+      flex-shrink: 0; 
+    }
+    
+    #info { 
+      display: block; 
+      font-size: min(calc(var(--cell-size) * 0.3), 20px);  
+      color: #a0a0a0; 
+      white-space: pre-wrap; 
+      line-height: 1.6; 
+      min-height: 5.5em; 
+      font-family: sans-serif; 
+      margin: 5px 0 0 0; 
+      padding: 0;
+    }
+    
+    #info::first-line { 
+      font-size: min(calc(var(--cell-size) * 0.4), 22px); 
+      color: #2584f0; 
+      font-weight: bold; 
+      line-height: 1.6; 
+    }
+    
+    .btn-undo, .btn-reselect, .btn-restart, .btn-reject { 
+      padding: 5px 15px; border-radius: 15px; font-size: var(--font-size-btn);  
+      color: white; border: none; cursor: pointer; font-weight: bold; 
+    }
+    .btn-undo { background-color: #ff9800; } 
+    .btn-reselect { background-color: #2196F3; }
+    .btn-restart { background-color: #4CAF50; } 
+    .btn-reject { background-color: #d32f2f; }
+    
+    .btn-undo:active, .btn-reselect:active, .btn-restart:active, .btn-reject:active {
+      transform: scale(0.95) translateY(0); 
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); 
+      filter: brightness(0.92); 
+    }
+    .btn-undo:disabled, .btn-reselect:disabled, .btn-restart:disabled, .btn-reject:disabled {
+      cursor: not-allowed; opacity: 0.6; transform: none; box-shadow: none;
+    }
+
+    .check-alert { color: red; font-size: calc(var(--cell-size) * 0.4); font-weight: bold; animation: blink 1s infinite; display: none; margin: 5px; }
+    .req-alert { color: #E91E63; font-size: calc(var(--cell-size) * 0.4); font-weight: bold; animation: blink 1.5s infinite; display: none; margin: 5px; }
+    .think-alert { color: #e91eba; font-size: calc(var(--cell-size) * 0.4); font-weight: bold; animation: blink 0.9s infinite; display: none; margin: 5px; }
+    @keyframes blink { 50% { opacity: 0; } }
+    
+    #board-container {
+      display: inline-block; border: 4px solid #333;
+      box-shadow: 2px 5px 10px rgba(0,0,0,0.3);
+      -webkit-user-select: none; user-select: none; border-radius: 2px; 
+      margin-top: 5px; margin-bottom: 5px; background: #fff;
+    }
+    
+    #board-grid { 
+      display: grid; 
+      grid-template-columns: repeat(8, var(--cell-size)); 
+      grid-template-rows: repeat(8, var(--cell-size)); 
+    }
+    
+    .cell { 
+      position: relative; display: flex; justify-content: center; align-items: center; 
+      cursor: pointer; -webkit-tap-highlight-color: transparent; 
+    }
+    .light-square { background-color: #f0d9b5; }
+    .dark-square { background-color: #b58863; }
+
+    .piece {
+      width: 100%; height: 100%; position: absolute; z-index: 10;
+      display: flex; justify-content: center; align-items: center; 
+      font-size: var(--font-size); font-family: Arial, sans-serif;
+    }
+    
+    .piece.white { color: #ffffff; text-shadow: 0 2px 4px rgba(0,0,0,0.7), 0 0 2px #000; }
+    .piece.black { color: #000000; text-shadow: 0 2px 4px rgba(0,0,0,0.5), 0 0 2px #fff; }
+    
+    .piece.selected { transform: scale(1.15); z-index: 15; filter: drop-shadow(0 0 6px #00BCD4); } 
+    .cell.valid-move::after { content: ''; position: absolute; width: calc(var(--cell-size) * 0.3); height: calc(var(--cell-size) * 0.3); background: rgba(0, 188, 212, 0.7); border-radius: 50%; z-index: 12; }
+    .cell.last-move-origin::before { content: ''; position: absolute; width: calc(var(--cell-size) * 0.6); height: calc(var(--cell-size) * 0.6); background-color: rgba(255, 152, 0, 0.4); border-radius: 10%; z-index: 5; }
+    .piece.last-moved { filter: drop-shadow(0 0 6px #FF9800); z-index: 14; }
+
+    #role-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 999; justify-content: center; align-items: center; }
+    .modal-content { background: #fff; padding: 25px; border-radius: 10px; text-align: center; max-width: 36rem; position: relative; font-size: var(--font-size-btn-model);}
+    .modal-btn { display: block; width: 100%; margin: 10px 0; padding: 8px; font-size: var(--font-size-btn-model); border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; }
+    .modal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    #btn-role-b { background: #212121; } #btn-role-r { background: #f5f5f5; color: #333; border: 1px solid #ccc; } #btn-role-s { background: #757575; }
+    .btn-ai-easy { background: #8D6E63; margin: 0 !important; flex: 1; } .btn-ai-hard { background: #5E35B1; margin: 0 !important; flex: 1; }
+    .ai-btn-group { display: flex; gap: 8px; margin-bottom: 12px; }
+    .modal-subtitle { margin: 15px 0 8px 0; color: #444; font-size: var(--font-size-btn-model);  font-weight: bold; text-align: left;}
+    .role-badge { display: inline-block; padding: 5px 15px; border-radius: 15px; color: white; background: #555; font-size: var(--font-size-btn);  }
+    .role-b { background: #212121; } .role-r { background: #e0e0e0; color: #333; border: 1px solid #aaa; }
+    #modal-room-name { font-weight: 360; }
+
+    .modal-btn:active, .btn-role-b:active, .btn-ai-easy:active {
+      transform: scale(0.95) translateY(0); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); filter: brightness(0.92);
+    }    
+  </style>
+</head>
+<body>
+
+  <div id="role-modal">
+    <div class="modal-content">
+      <span id="close-modal-btn" style="position:absolute; top:10px; right:15px; cursor:pointer; display:block; color:#999; font-size: 20px" onclick="closeRoleModal()">&times;</span>
+      <span>Room: </span><span id="modal-room-name"></span>
+      
+      <button id="btn-role-r" class="modal-btn" >Play White</button>
+      <button id="btn-role-b" class="modal-btn" >Play Black</button>
+      <button id="btn-role-s" class="modal-btn" >Spectator</button>
+
+      <div id="ai-menu-section">
+        <hr style="border: 0; height: 3px; background: #3f51b5; margin: 25px 0; ">
+        <div class="modal-subtitle">Play vs AI</div>
+        <div class="ai-btn-group">
+          <span class="modal-subtitle">Easy</span>
+          <button id="easy-handle-red" class="modal-btn btn-ai-easy" >White</button>
+          <button id="easy-handle-black" class="modal-btn btn-ai-easy" >Black</button>
+        </div>
+        <div class="ai-btn-group">
+          <span class="modal-subtitle">Hard</span>
+          <button id="adv-handle-red" class="modal-btn btn-ai-hard" >White</button>
+          <button id="adv-handle-black" class="modal-btn btn-ai-hard" >Black</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2 id="room-title"></h2>
+  <div class="status-container">
+    <button id="show-role-modal" class="btn-reselect" >🔄 Roles</button>
+    <button id="btn-replay" class="btn-reselect" style="display:none; background-color: #9C27B0;" >▶️ Review</button>
+    <button id="btn-replay-stop" class="btn-reject" style="display:none; background-color: #757575;" >⏹️ Stop</button>
+    <button id="restart-btn" class="btn-restart" style="display:none;"></button>
+    <button id="reject-btn" class="btn-reject" style="display:none;" >⛔ Reject</button>
+    <button id="undo-btn" class="btn-undo" style="display:none;">OK</button>
+    <button id="reject-undo-btn" class="btn-reject" style="display:none;" >⛔ Reject</button>
+    <span id="role-info" class="role-badge">Connecting...</span>
+  </div>
+  
+  <div id="board-container">
+    <div id="board-grid"></div>
+  </div>
+  
+  <div id="req-alert" class="req-alert"></div>
+  <div id="think-alert" class="think-alert"></div>
+  <div id="check-msg" class="check-alert">Check!</div>
+  <div id="info">Waiting for sync...</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <script src="enUpdate.js"></script>
+  <script src="sse.js"></script>
+  <script src="enChess.js"></script>
+</body>
+</html>
