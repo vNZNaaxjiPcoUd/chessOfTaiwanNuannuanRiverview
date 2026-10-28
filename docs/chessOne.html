@@ -78,7 +78,20 @@
     .btn-undo, .btn-reselect, .btn-restart, .btn-reject { padding: 5px 15px; border-radius: 15px; font-size: var(--font-size-btn);  color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
     .btn-undo { background-color: #ff9800; } .btn-reselect { background-color: #2196F3; }
     .btn-restart { background-color: #4CAF50; } .btn-reject { background-color: #d32f2f; }
-    
+    /* 按下瞬間 (:active) 按壓動態 */
+    .btn-undo:active, .btn-reselect:active, .btn-restart:active, .btn-reject:active {
+      transform: scale(0.95) translateY(0); /* 微幅按壓縮放與沉入 */
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); /* 陰影收緊，模擬被壓下的質感 */
+      filter: brightness(0.92); /* 稍微加深顏色，強化點擊回饋 */
+    }
+    /* 停用狀態（Disabled）：防止點擊時觸發動畫 */
+    .btn-undo:disabled, .btn-reselect:disabled, .btn-restart:disabled, .btn-reject:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+      transform: none;
+      box-shadow: none;
+    }
+
     .check-alert { color: red; font-size: calc(var(--cell-size) * 0.4);  font-weight: bold; animation: blink 1s infinite; display: none; margin: 5px; }
     .req-alert { color: #E91E63; font-size: calc(var(--cell-size) * 0.4);  font-weight: bold; animation: blink 1.5s infinite; display: none; margin: 5px; }
     .think-alert { color: #e91eba; font-size: calc(var(--cell-size) * 0.4);  font-weight: bold; animation: blink 0.9s infinite; display: none; margin: 5px; }
@@ -122,6 +135,13 @@
     .role-badge { display: inline-block; padding: 5px 15px; border-radius: 15px; color: white; background: #555; font-size: var(--font-size-btn);  }
     .role-b { background: #212121; } .role-r { background: #d32f2f; }
     #modal-room-name { font-weight: 360; }
+
+    /* 按下瞬間 (:active) 按壓動態 */
+    .modal-btn:active, .btn-role-b:active, .btn-ai-easy:active {
+      transform: scale(0.95) translateY(0); /* 微幅按壓縮放與沉入 */
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); /* 陰影收緊，模擬被壓下的質感 */
+      filter: brightness(0.92); /* 稍微加深顏色，強化點擊回饋 */
+    }    
   </style>
 
 </head>

@@ -1,4 +1,4 @@
-const CACHE_NAME = '聊天🌿-v.261028124047'; 
+const CACHE_NAME = '聊天🌿-v.261028125224'; 
 
 // 這裡列出需要被快取到手機/電腦裡的靜態檔案
 const urlsToCache = [
