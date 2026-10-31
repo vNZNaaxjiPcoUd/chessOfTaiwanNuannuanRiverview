@@ -1,4 +1,4 @@
-const CACHE_NAME = 'Chess-v.261031115155'; 
+const CACHE_NAME = 'Chess-v.261031115442'; 
 
 // 這裡列出需要被快取到手機/電腦裡的靜態檔案
 const urlsToCache = [
